@@ -102,7 +102,6 @@ function zr_verkleinern(string $jpeg, int $breite, string $ziel): void
     $h = imagesy($bild);
     if ($b <= $breite) {
         zr_schreiben($ziel, $jpeg);
-        imagedestroy($bild);
         return;
     }
     $nh = (int) round($h * $breite / $b);
@@ -111,8 +110,6 @@ function zr_verkleinern(string $jpeg, int $breite, string $ziel): void
     ob_start();
     imagejpeg($klein, null, 80);
     zr_schreiben($ziel, (string) ob_get_clean());
-    imagedestroy($bild);
-    imagedestroy($klein);
 }
 
 /** Datei ausliefern, mit Caching und Range-Unterstuetzung (fuer Videos auf iPhone/Safari). */
