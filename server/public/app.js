@@ -15,7 +15,7 @@
   var cache = {};
 
   function url(params) {
-    var q = ['k=' + encodeURIComponent(TOKEN)];
+    var q = TOKEN ? ['k=' + encodeURIComponent(TOKEN)] : [];
     for (var k in params) q.push(k + '=' + encodeURIComponent(params[k]));
     return 'datei.php?' + q.join('&');
   }
@@ -30,7 +30,7 @@
   function stunde(z) { return parseInt(z.slice(0, 2), 10); }
 
   function laden(alleBild) {
-    return fetch('daten.php?k=' + encodeURIComponent(TOKEN), { cache: 'no-store' })
+    return fetch('daten.php' + (TOKEN ? '?k=' + encodeURIComponent(TOKEN) : ''), { cache: 'no-store', credentials: 'same-origin' })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (d) {
         var warAmEnde = tag === tagListe[0] && index === sichtbar.length - 1 && !timer;

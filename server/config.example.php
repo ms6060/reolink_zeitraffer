@@ -21,6 +21,20 @@ return [
     // Fusszeile in der Galerie (leer = keine).
     'fusszeile' => 'e.viSio elektrovisionen gmbh',
 
+    // Erscheinungsbild (optional, gilt fuer alle Kameras; je Kamera mit 'design' ueberschreibbar).
+    // Logo-Datei in den Web-Ordner legen und hier den Dateinamen eintragen.
+    'design' => [
+        'firma' => 'e.viSio elektrovisionen gmbh',
+        'logo' => '',              // z. B. 'logo.png'
+        'akzent' => '#F0A720',     // Knoepfe, Markierungen
+        'akzent_text' => '#1a1406',// Schrift auf Akzentfarbe
+        'dunkel' => '#1f2328',     // Leiste oben, Hintergrund Anmeldung
+        'schrift' => '',           // z. B. '"Montserrat", sans-serif'
+        'schrift_css' => '',       // z. B. Google-Fonts-Link
+    ],
+
+    // Passwoerter werden NICHT hier, sondern per SSH verwaltet:  bash _privat/zugang.sh
+
     'kameras' => [
         // Schluessel = Kurzname, gleich wie [kamera:...] im Abholer.
         'esther-reier-weg-8' => [

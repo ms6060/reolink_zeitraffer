@@ -36,7 +36,7 @@ echo
 mkdir -p "$APP/lib" "$DATEN" "$WEB"
 echo "Require all denied" > "$APP/.htaccess"
 cp -f "$QUELLE"/lib/*.php "$QUELLE/lib/.htaccess" "$APP/lib/"
-cp -f "$QUELLE/config.example.php" "$APP/"
+cp -f "$QUELLE/config.example.php" "$QUELLE/zugang.sh" "$APP/"
 ok "Programmteile kopiert"
 
 # 2. Galerie in den Web-Ordner
@@ -87,7 +87,7 @@ T_HOMEPAGE=$(sed -n 's/^HOMEPAGE=//p' "$APP/zugang.txt")
 # 4. Hochgeladene Kopie aus dem Web-Ordner entfernen (lib/ und config gehoeren nicht ins Web)
 case "$QUELLE" in
   "$HOME/html"*)
-    rm -rf "$QUELLE/lib" "$QUELLE/public" "$QUELLE/config.example.php"
+    rm -rf "$QUELLE/lib" "$QUELLE/public" "$QUELLE/config.example.php" "$QUELLE/zugang.sh"
     if [ "$QUELLE" != "$WEB" ]; then
       rm -f "$QUELLE/einrichten-easyname.sh"
       rmdir "$QUELLE" 2>/dev/null || true

@@ -3,11 +3,11 @@
 declare(strict_types=1);
 require __DIR__ . '/_init.php';
 
-$treffer = zr_kamera_per_token((string) ($_GET['k'] ?? ''));
-if ($treffer === null) {
+$zugang = zr_zugang();
+if ($zugang === null) {
     zr_fehler(403, 'Kein Zugriff');
 }
-[$slug, $kamera] = $treffer;
+[$slug, $kamera, $rolle] = $zugang;
 $basis = zr_kamera_pfad($slug);
 
 $tage = [];
@@ -46,6 +46,7 @@ usort($videos, function ($a, $b) {
 zr_json([
     'ok' => true,
     'titel' => (string) ($kamera['titel'] ?? $slug),
+    'rolle' => $rolle,
     'tage' => $tage,
     'videos' => $videos,
     'tag_von' => (int) ($kamera['tag_von'] ?? zr_cfg('tag_von', 6)),

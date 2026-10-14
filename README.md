@@ -68,7 +68,19 @@ python zeitraffer.py videos        # Videos jetzt erstellen
 python zeitraffer.py videos --neu  # alle Videos neu erstellen
 ```
 
-## 3. Freigeben und einbetten
+## 3. Passwörter
+
+Die Galerie ist unter der Adresse der Subdomain (z. B. `https://erw8.csi.solutions`) mit Passwort erreichbar.
+Passwörter anlegen, ändern oder löschen per SSH im Web-Ordner:
+
+```
+cd ~/html/estherreierweg8
+bash _privat/zugang.sh
+```
+
+Rollen: **Ansicht** (nur anschauen) und **Admin** (für spätere Einstellungen wie Verpixeln). Ein gelöschter Zugang ist sofort abgemeldet.
+
+## 4. Freigeben und einbetten
 
 - **Bauherr:** Link `https://DOMAIN/zeitraffer/?k=TOKEN-BAUHERR` schicken.
 - **Homepage:** eigener Token, eingebettet mit
@@ -81,7 +93,7 @@ python zeitraffer.py videos --neu  # alle Videos neu erstellen
 
 Datenschutz: Auf den Bildern können Nachbargrundstücke, Personen und Kennzeichen erkennbar sein. Vor einer öffentlichen Einbindung den Bildausschnitt prüfen (in der Reolink-App lassen sich Privatzonen setzen).
 
-## 4. Weitere Kamera
+## 5. Weitere Kamera
 
 - `abholer/config.ini`: neuen Abschnitt `[kamera:kurzname]` mit `uid` und `passwort`.
 - `server/config.php`: gleichen `kurzname` unter `kameras` mit Titel und eigenen Tokens.

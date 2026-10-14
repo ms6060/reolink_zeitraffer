@@ -5,12 +5,12 @@
 declare(strict_types=1);
 require __DIR__ . '/_init.php';
 
-$treffer = zr_kamera_per_token((string) ($_GET['k'] ?? ''));
-if ($treffer === null) {
+$zugang = zr_zugang();
+if ($zugang === null) {
     http_response_code(403);
     exit;
 }
-[$slug] = $treffer;
+[$slug] = $zugang;
 $basis = zr_kamera_pfad($slug);
 $typ = (string) ($_GET['typ'] ?? '');
 $download = ($_GET['download'] ?? '') === '1';
