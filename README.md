@@ -36,7 +36,7 @@ Zugangsdaten stehen nur in `abholer/config.ini` und `server/config.php`. Beide s
 3. Das Skript fragt nach der Internet-Adresse des Web-Ordners und zeigt am Ende an:
    API-Schlüssel und Server-URL für den Windows Server, den Link für den Bauherrn und den iframe-Code für die Homepage.
 
-Danach liegen Programm und Zugangsdaten in `~/zeitraffer-app`, Bilder und Videos in `~/zeitraffer-daten` (beides nicht öffentlich) und nur die Galerie im Web-Ordner. Weitere Kameras oder Links: `~/zeitraffer-app/config.php` bearbeiten.
+Danach liegen Programm, Zugangsdaten, Bilder und Videos im Unterordner `_privat` des Web-Ordners. Er ist per `.htaccess` für Zugriffe aus dem Internet gesperrt. Außerhalb des Web-Ordners geht es bei easyname nicht, weil PHP dort per `open_basedir` nur auf den Web-Ordner der jeweiligen Domain zugreifen darf. Weitere Kameras oder Links: `_privat/config.php` bearbeiten.
 
 ## 2. Windows Server einrichten
 

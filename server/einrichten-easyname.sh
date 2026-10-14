@@ -3,18 +3,19 @@
 #   bash einrichten-easyname.sh
 #
 # Was passiert:
-#   - Programmteile (lib, config.php) kommen nach  ~/zeitraffer-app        (nicht oeffentlich)
-#   - Bilder und Videos kommen nach                ~/zeitraffer-daten      (nicht oeffentlich)
 #   - Die Galerie kommt in den Web-Ordner, Standard: ~/html/estherreierweg8
+#   - Programmteile, config.php, Bilder und Videos kommen nach WEB/_privat,
+#     per .htaccess fuer Zugriffe aus dem Internet gesperrt.
+#     (easyname erlaubt PHP per open_basedir nur den Zugriff auf den Web-Ordner der Domain.)
 #   - Schluessel und Freigabelinks werden erzeugt und am Ende angezeigt.
 # Kann gefahrlos nochmal ausgefuehrt werden (vorhandene Schluessel bleiben).
 
 set -e
 HOME="$(cd "$HOME" && pwd)"   # ohne abschliessenden Schraegstrich
 QUELLE="$(cd "$(dirname "$0")" && pwd)"
-APP="$HOME/zeitraffer-app"
-DATEN="$HOME/zeitraffer-daten"
 WEB="${1:-$HOME/html/estherreierweg8}"
+APP="$WEB/_privat"
+DATEN="$APP/daten"
 KAMERA="esther-reier-weg-8"
 TITEL="Baustelle Esther-Reier-Weg 8"
 
@@ -33,13 +34,14 @@ echo
 
 # 1. Programmteile nach ~/zeitraffer-app
 mkdir -p "$APP/lib" "$DATEN" "$WEB"
+echo "Require all denied" > "$APP/.htaccess"
 cp -f "$QUELLE"/lib/*.php "$QUELLE/lib/.htaccess" "$APP/lib/"
 cp -f "$QUELLE/config.example.php" "$APP/"
 ok "Programmteile kopiert"
 
 # 2. Galerie in den Web-Ordner
 cp -f "$QUELLE"/public/*.php "$QUELLE"/public/*.js "$QUELLE"/public/*.css "$WEB/"
-echo "<?php require '$APP/lib/bootstrap.php';" > "$WEB/_init.php"
+echo "<?php require __DIR__ . '/_privat/lib/bootstrap.php';" > "$WEB/_init.php"
 ok "Galerie im Web-Ordner"
 
 # 3. config.php mit neuen Schluesseln (nur beim ersten Mal)
