@@ -26,21 +26,17 @@ Zugangsdaten stehen nur in `abholer/config.ini` und `server/config.php`. Beide s
 
 ## 1. easyname einrichten
 
-1. Per SFTP den Ordner `server/` hochladen nach `/data/web/e71813/zeitraffer/`
-   (ergibt `.../zeitraffer/lib`, `.../zeitraffer/public`, `.../zeitraffer/config.example.php`).
-2. Den **Inhalt** von `public/` zusätzlich in den Web-Ordner kopieren, z. B. nach `html/zeitraffer/`.
-   In `html/zeitraffer/_init.php` die Zeile `require ...` ersetzen durch:
-   ```php
-   require '/data/web/e71813/zeitraffer/lib/bootstrap.php';
+1. Den Ordner `server/` per SFTP in den Web-Ordner hochladen, z. B. nach `html/estherreierweg8/server`.
+2. Per SSH einloggen und dort das Einrichtungsskript starten:
    ```
-   (Alternativ eine Subdomain direkt auf `/data/web/e71813/zeitraffer/public` zeigen lassen, dann bleibt `_init.php` unverändert.)
-3. Schlüssel erzeugen (per SSH), dreimal ausführen: API-Schlüssel, Token Bauherr, Token Homepage.
+   cd ~/html/estherreierweg8/server
+   bash einrichten-easyname.sh
    ```
-   php -r 'echo bin2hex(random_bytes(24)), PHP_EOL;'
-   ```
-4. `config.example.php` nach `config.php` kopieren (im Ordner `/data/web/e71813/zeitraffer/`) und ausfüllen.
-   `daten_pfad` z. B. `/data/web/e71813/zeitraffer-daten` (wird automatisch angelegt).
-5. Aufruf zum Test: `https://DOMAIN/zeitraffer/?k=TOKEN` zeigt „Noch keine Bilder“.
+   Ein anderer Web-Ordner geht als Zusatz: `bash einrichten-easyname.sh ~/html/anderer-ordner`
+3. Das Skript fragt nach der Internet-Adresse des Web-Ordners und zeigt am Ende an:
+   API-Schlüssel und Server-URL für den Windows Server, den Link für den Bauherrn und den iframe-Code für die Homepage.
+
+Danach liegen Programm und Zugangsdaten in `~/zeitraffer-app`, Bilder und Videos in `~/zeitraffer-daten` (beides nicht öffentlich) und nur die Galerie im Web-Ordner. Weitere Kameras oder Links: `~/zeitraffer-app/config.php` bearbeiten.
 
 ## 2. Windows Server einrichten
 
