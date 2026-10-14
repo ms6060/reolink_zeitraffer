@@ -1,4 +1,4 @@
-# e.viSio Zeitraffer
+# CSI Zeitraffer
 
 Zeitraffer für Reolink-LTE-Kameras (getestet mit TrackMix LTE Plus 2).
 

@@ -1,149 +1,176 @@
+/* CSI - Clever & Smart Immo GmbH · Zeitraffer-Galerie */
+
+@font-face { font-family: "Capoon"; src: url(schrift/capoon-thin.woff2) format("woff2"); font-weight: 250; font-display: swap; }
+@font-face { font-family: "Capoon"; src: url(schrift/capoon-light.woff2) format("woff2"); font-weight: 300; font-display: swap; }
+@font-face { font-family: "Capoon"; src: url(schrift/capoon-medium.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Capoon"; src: url(schrift/capoon-bold.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Jost"; src: url(schrift/jost-300.woff2) format("woff2"); font-weight: 300; font-display: swap; }
+@font-face { font-family: "Jost"; src: url(schrift/jost-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Jost"; src: url(schrift/jost-500.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+
 :root {
-  --akzent: #F0A720;
-  --akzent-dunkel: #c9860a;
-  --text: #1f2328;
-  --leise: #6a717a;
-  --linie: #e3e5e8;
-  --flaeche: #f6f7f8;
-  --weiss: #fff;
-  --radius: 10px;
+  --akzent: #e9e9ea;        /* Silber: Knoepfe, Markierungen */
+  --akzent-text: #141315;
+  --dunkel: #232224;        /* Kopfleiste, Flaechen */
+  --grund: #161517;         /* Seitenhintergrund */
+  --flaeche: #232224;
+  --flaeche-2: #2c2b2e;
+  --text: #f2f2f3;
+  --leise: #a2a1a6;
+  --linie: #3b3a3e;
+  --radius: 2px;
+  --titel: "Capoon", "Eurostile", "Arial", sans-serif;
+  --schrift: "Jost", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
-  font-family: var(--schrift, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif);
-  color: var(--text);
-  background: var(--flaeche);
+  font-family: var(--schrift); font-weight: 300; font-size: 16px;
+  color: var(--text); background: var(--grund);
   -webkit-font-smoothing: antialiased;
 }
-.seite { max-width: 1180px; margin: 0 auto; padding: 20px 16px 28px; }
+a { color: var(--text); }
+.seite { max-width: 1200px; margin: 0 auto; padding: 28px 16px 32px; }
 body.einbetten { background: transparent; }
 body.einbetten .seite { padding: 0; max-width: none; }
 
-/* Kopf */
+/* Kopfleiste wie csi.solutions */
+.leiste-oben { background: var(--dunkel); border-bottom: 1px solid #000; }
+.leiste-innen {
+  max-width: 1200px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center;
+  justify-content: space-between; gap: 16px; min-height: 96px;
+}
+.leiste-oben .logo { height: 76px; width: 76px; display: block; }
+.leiste-oben .firma { font-family: var(--titel); font-weight: 500; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; }
+.abmelden {
+  font-family: var(--titel); font-weight: 500; text-transform: uppercase; letter-spacing: .1em; font-size: .85rem;
+  color: var(--text); text-decoration: none; padding: 6px 0;
+}
+.abmelden:hover { text-decoration: underline; text-underline-offset: 6px; }
+
+/* Titel */
 .kopf {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
-  flex-wrap: wrap; margin-bottom: 14px;
-  border-left: 4px solid var(--akzent); padding-left: 12px;
+  flex-wrap: wrap; margin-bottom: 20px;
 }
-body.einbetten .kopf { margin-bottom: 8px; }
-h1 { font-size: 1.35rem; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
-.stand { margin: 2px 0 0; color: var(--leise); font-size: 0.9rem; }
-.reiter { display: flex; background: var(--weiss); border: 1px solid var(--linie); border-radius: 999px; padding: 3px; }
+body.einbetten .kopf { margin-bottom: 10px; }
+h1 {
+  font-family: var(--titel); font-weight: 500; text-transform: lowercase;
+  font-size: clamp(1.3rem, 3vw, 2.1rem); letter-spacing: .03em; margin: 0; line-height: 1.2; text-wrap: balance;
+}
+.stand { margin: 4px 0 0; color: var(--leise); font-family: var(--titel); font-weight: 300; text-transform: lowercase; font-size: 1rem; letter-spacing: .05em; }
+
+/* Reiter als unterstrichene Textlinks */
+.reiter { display: flex; gap: 22px; }
 .reiter button {
-  border: 0; background: none; padding: 7px 16px; border-radius: 999px;
-  font: inherit; font-size: 0.92rem; color: var(--leise); cursor: pointer;
+  border: 0; background: none; padding: 4px 0; font-family: var(--titel); font-weight: 500; text-transform: lowercase;
+  font-size: 1.1rem; letter-spacing: .06em; color: var(--leise); cursor: pointer;
 }
-.reiter button.aktiv { background: var(--akzent); color: var(--akzent-text); font-weight: 600; }
+.reiter button.aktiv { color: var(--text); text-decoration: underline; text-underline-offset: 7px; text-decoration-thickness: 1px; }
+.reiter button:hover { color: var(--text); }
 
 /* Buehne */
 .buehne {
-  position: relative; background: #111; border-radius: var(--radius); overflow: hidden;
+  position: relative; background: #000; overflow: hidden; border-radius: var(--radius);
   aspect-ratio: 16 / 9; width: 100%;
 }
 .buehne img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.zeitmarke {
-  position: absolute; left: 10px; bottom: 10px; padding: 5px 10px; border-radius: 6px;
-  background: rgba(0,0,0,.62); color: #fff; font-size: 0.9rem; font-variant-numeric: tabular-nums;
+.zeitmarke, .original {
+  position: absolute; bottom: 12px; padding: 6px 12px; background: rgba(22,21,23,.72);
+  color: #fff; font-size: .88rem; letter-spacing: .03em; backdrop-filter: blur(4px);
 }
-.original {
-  position: absolute; right: 10px; bottom: 10px; padding: 5px 10px; border-radius: 6px;
-  background: rgba(0,0,0,.62); color: #fff; font-size: 0.8rem; text-decoration: none;
-}
-.original:hover { background: rgba(0,0,0,.8); }
-.leer {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  color: #ccc; background: #111;
-}
+.zeitmarke { left: 12px; font-variant-numeric: tabular-nums; }
+.original { right: 12px; text-decoration: none; font-family: var(--titel); font-weight: 500; text-transform: lowercase; font-size: .85rem; letter-spacing: .06em; }
+.original:hover { text-decoration: underline; text-underline-offset: 4px; }
+.leer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--leise); background: #000; }
 
 /* Steuerung */
 .steuerung {
   display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin: 12px 0 6px;
+  margin: 16px 0 8px;
 }
 .tagwahl, .abspielen { display: flex; align-items: center; gap: 8px; }
 select {
-  font: inherit; font-size: 0.92rem; padding: 7px 10px; border: 1px solid var(--linie);
-  border-radius: 8px; background: var(--weiss); color: var(--text);
+  font: inherit; font-weight: 400; font-size: .95rem; padding: 8px 12px; border: 1px solid var(--linie);
+  border-radius: var(--radius); background: var(--flaeche); color: var(--text);
 }
 .knopf {
-  font: inherit; width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--linie);
-  background: var(--weiss); color: var(--text); cursor: pointer; font-size: 1.1rem; line-height: 1;
+  font: inherit; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--linie);
+  background: transparent; color: var(--text); cursor: pointer; font-size: 1.1rem; line-height: 1;
 }
-.knopf:disabled { opacity: .35; cursor: default; }
-.knopf.haupt { background: var(--akzent); border-color: var(--akzent); color: var(--akzent-text); width: 44px; font-size: 0.95rem; }
-.knopf.haupt:hover { filter: brightness(0.92); }
-.schalter { font-size: 0.9rem; color: var(--leise); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.knopf:hover:not(:disabled) { border-color: var(--text); }
+.knopf:disabled { opacity: .3; cursor: default; }
+.knopf.haupt { width: 46px; height: 46px; background: var(--akzent); border-color: var(--akzent); color: var(--akzent-text); font-size: .95rem; }
+.knopf.haupt:hover { background: #fff; }
+.schalter { font-size: .95rem; color: var(--leise); display: flex; align-items: center; gap: 7px; cursor: pointer; }
 .schalter input { accent-color: var(--akzent); width: 16px; height: 16px; }
 
-input[type=range] { width: 100%; accent-color: var(--akzent); margin: 6px 0 10px; }
+input[type=range] { width: 100%; accent-color: var(--akzent); margin: 8px 0 12px; }
 
 /* Vorschauleiste */
 .leiste {
-  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scroll-behavior: smooth;
-  scrollbar-width: thin;
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scroll-behavior: smooth;
+  scrollbar-width: thin; scrollbar-color: var(--linie) transparent;
 }
 .mini {
-  flex: 0 0 auto; width: 96px; border: 2px solid transparent; border-radius: 6px; padding: 0;
-  background: var(--weiss); cursor: pointer; overflow: hidden; text-align: center;
+  flex: 0 0 auto; width: 100px; border: 1px solid transparent; padding: 0; border-radius: var(--radius); font: inherit;
+  background: var(--flaeche); cursor: pointer; overflow: hidden; text-align: center; color: var(--leise);
 }
-.mini img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; background: #ddd; }
-.mini span { display: block; font-size: 0.72rem; color: var(--leise); padding: 2px 0; font-variant-numeric: tabular-nums; }
+.mini img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; background: #000; opacity: .75; }
+.mini span { display: block; font-size: .75rem; padding: 3px 0; font-variant-numeric: tabular-nums; }
+.mini:hover img { opacity: 1; }
 .mini.aktiv { border-color: var(--akzent); }
-.mini.aktiv span { color: var(--text); font-weight: 600; }
+.mini.aktiv img { opacity: 1; }
+.mini.aktiv span { color: var(--text); font-weight: 500; }
 
 /* Videos */
-.video-haupt video { width: 100%; aspect-ratio: 16 / 9; background: #111; border-radius: var(--radius); display: block; }
-.video-titel { display: flex; justify-content: space-between; margin: 10px 0 14px; font-weight: 600; }
-.video-titel a { color: var(--text); text-decoration: underline; text-decoration-color: var(--akzent); text-underline-offset: 3px; font-weight: 500; text-decoration: none; }
-.video-titel a:hover { text-decoration: underline; }
-.video-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.video-haupt video { width: 100%; aspect-ratio: 16 / 9; background: #000; display: block; border-radius: var(--radius); }
+.video-titel { display: flex; justify-content: space-between; align-items: baseline; margin: 12px 0 16px; font-weight: 400; }
+.video-titel a { text-decoration: underline; text-underline-offset: 5px; font-family: var(--titel); font-weight: 500; text-transform: lowercase; font-size: .9rem; letter-spacing: .05em; }
+.video-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
 .video-eintrag {
-  font: inherit; text-align: left; padding: 10px 12px; border: 1px solid var(--linie); border-radius: 8px;
-  background: var(--weiss); cursor: pointer; display: flex; justify-content: space-between; gap: 8px;
+  font: inherit; text-align: left; padding: 12px 14px; border: 1px solid var(--linie); border-radius: var(--radius);
+  background: var(--flaeche); color: var(--text); cursor: pointer; display: flex; justify-content: space-between; gap: 8px;
 }
-.video-eintrag.aktiv { border-color: var(--akzent); box-shadow: inset 3px 0 0 var(--akzent); }
-.v-info { color: var(--leise); font-size: 0.82rem; white-space: nowrap; }
+.video-eintrag:hover { border-color: var(--leise); }
+.video-eintrag.aktiv { border-color: var(--akzent); }
+.v-info { color: var(--leise); font-size: .85rem; white-space: nowrap; }
 .hinweis { color: var(--leise); }
 
-.fuss { margin-top: 26px; font-size: 0.8rem; color: var(--leise); text-align: center; }
+.fuss {
+  margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--linie); font-size: .82rem; color: var(--leise);
+  text-align: center; letter-spacing: .04em;
+}
 
-@media (max-width: 560px) {
-  h1 { font-size: 1.15rem; }
+/* Anmeldung */
+body.anmeldung {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px 16px; background: radial-gradient(ellipse at 70% 40%, #2a292c 0%, var(--grund) 65%);
+}
+.anmelde-karte { width: 100%; max-width: 400px; text-align: center; padding: 8px 4px; }
+.anmelde-logo { width: 132px; height: 132px; margin: 0 auto 26px; display: block; }
+.anmelde-karte h1 { font-size: 1.45rem; margin-bottom: 8px; }
+.anmelde-text { color: var(--leise); margin: 0 0 26px; font-family: var(--titel); font-weight: 300; text-transform: lowercase; letter-spacing: .05em; }
+.anmelde-karte input {
+  width: 100%; font: inherit; font-weight: 400; padding: 13px 16px; margin-bottom: 14px;
+  background: transparent; color: var(--text); border: 1px solid var(--linie); border-radius: var(--radius);
+}
+.anmelde-karte input::placeholder { color: var(--leise); }
+.anmelde-karte input:focus { outline: none; border-color: var(--text); }
+.anmelde-karte button {
+  width: 100%; padding: 14px; border: 1px solid var(--akzent); border-radius: var(--radius);
+  background: var(--akzent); color: var(--akzent-text); cursor: pointer;
+  font-family: var(--titel); font-weight: 500; text-transform: uppercase; letter-spacing: .14em; font-size: .9rem;
+}
+.anmelde-karte button:hover { background: #fff; }
+.hinweis-fehler { color: #ff8a80; font-size: .92rem; margin: 0 0 14px; }
+body.anmeldung .fuss { border-top: 0; margin-top: 40px; }
+
+@media (max-width: 600px) {
+  .leiste-innen { min-height: 72px; }
+  .leiste-oben .logo { height: 56px; width: 56px; }
   .steuerung { flex-direction: column; align-items: stretch; }
   .tagwahl select { flex: 1; min-width: 0; }
   .abspielen { justify-content: space-between; }
 }
-
-/* Leiste oben mit Logo */
-.leiste-oben { background: var(--dunkel); }
-.leiste-innen {
-  max-width: 1180px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center;
-  justify-content: space-between; gap: 16px; min-height: 60px;
-}
-.leiste-oben .logo { height: 44px; width: auto; display: block; }
-.leiste-oben .firma { color: #fff; font-weight: 600; letter-spacing: .02em; }
-.abmelden { color: #fff; opacity: .8; font-size: .88rem; text-decoration: none; }
-.abmelden:hover { opacity: 1; text-decoration: underline; text-decoration-color: var(--akzent); }
-
-/* Anmeldung */
-body.anmeldung { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; background: var(--dunkel); }
-.anmelde-karte {
-  width: 100%; max-width: 380px; background: var(--weiss); border-radius: 14px; padding: 32px 28px;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25); text-align: center; border-top: 4px solid var(--akzent);
-}
-.anmelde-logo { max-width: 160px; max-height: 110px; margin: 0 auto 14px; display: block; }
-.anmelde-karte h1 { font-size: 1.25rem; margin-bottom: 6px; }
-.anmelde-text { color: var(--leise); margin: 0 0 18px; font-size: .95rem; }
-.anmelde-karte input {
-  width: 100%; font: inherit; padding: 12px 14px; border: 1px solid var(--linie); border-radius: 8px; margin-bottom: 12px;
-}
-.anmelde-karte input:focus { outline: 2px solid var(--akzent); outline-offset: 1px; border-color: transparent; }
-.anmelde-karte button {
-  width: 100%; font: inherit; font-weight: 600; padding: 12px; border: 0; border-radius: 8px;
-  background: var(--akzent); color: var(--akzent-text); cursor: pointer;
-}
-.anmelde-karte button:hover { filter: brightness(0.92); }
-.hinweis-fehler { color: #b42318; font-size: .9rem; margin: 0 0 12px; }
-body.anmeldung .fuss { color: rgba(255,255,255,.6); }

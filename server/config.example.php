@@ -19,18 +19,18 @@ return [
     'tag_bis' => 20,
 
     // Fusszeile in der Galerie (leer = keine).
-    'fusszeile' => 'e.viSio elektrovisionen gmbh',
+    'fusszeile' => 'CSI - Clever & Smart Immo GmbH',
 
     // Erscheinungsbild (optional, gilt fuer alle Kameras; je Kamera mit 'design' ueberschreibbar).
     // Logo-Datei in den Web-Ordner legen und hier den Dateinamen eintragen.
     'design' => [
-        'firma' => 'e.viSio elektrovisionen gmbh',
-        'logo' => '',              // z. B. 'logo.png'
-        'akzent' => '#F0A720',     // Knoepfe, Markierungen
-        'akzent_text' => '#1a1406',// Schrift auf Akzentfarbe
-        'dunkel' => '#1f2328',     // Leiste oben, Hintergrund Anmeldung
-        'schrift' => '',           // z. B. '"Montserrat", sans-serif'
-        'schrift_css' => '',       // z. B. Google-Fonts-Link
+        'firma' => 'CSI - Clever & Smart Immo GmbH',
+        'logo' => 'logo.png',      // Datei im Web-Ordner, leer = Firmenname als Text
+        'akzent' => '#e9e9ea',     // Knoepfe, Markierungen (Silber)
+        'akzent_text' => '#141315',// Schrift auf Akzentfarbe
+        'dunkel' => '#232224',     // Kopfleiste
+        'schrift' => '',           // leer = Jost (mitgeliefert, ohne Google-Server)
+        'schrift_css' => '',
     ],
 
     // Passwoerter werden NICHT hier, sondern per SSH verwaltet:  bash _privat/zugang.sh
@@ -49,7 +49,7 @@ return [
             ],
 
             // Wo darf die Galerie per <iframe> eingebettet werden?
-            // Leer = ueberall. Sonst Liste von Ursprüngen, z. B. ['https://www.evisio.at'].
+            // Leer = ueberall. Sonst Liste von Ursprüngen, z. B. ['https://csi.solutions'].
             'einbetten_erlaubt' => [],
         ],
     ],

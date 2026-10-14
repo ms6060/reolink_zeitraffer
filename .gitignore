@@ -7,3 +7,6 @@ abholer/daten/
 abholer/neolink/
 abholer/ffmpeg/
 __pycache__/
+
+# Lizenzierte Hausschrift, nicht ins Repository
+server/public/schrift/capoon-*

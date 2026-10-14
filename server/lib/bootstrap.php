@@ -2,7 +2,7 @@
 // Gemeinsame Funktionen fuer den Zeitraffer-Server.
 declare(strict_types=1);
 
-const ZR_VERSION = '1.1';
+const ZR_VERSION = '1.2';
 
 $zrConfigDatei = dirname(__DIR__) . '/config.php';
 if (!is_file($zrConfigDatei)) {
@@ -119,11 +119,11 @@ function zr_zugang(): ?array
 function zr_design(array $kamera): array
 {
     $standard = [
-        'firma' => 'e.viSio elektrovisionen gmbh',
-        'logo' => '',
-        'akzent' => '#F0A720',
-        'akzent_text' => '#1a1406',
-        'dunkel' => '#1f2328',
+        'firma' => 'CSI - Clever & Smart Immo GmbH',
+        'logo' => 'logo.png',
+        'akzent' => '#e9e9ea',
+        'akzent_text' => '#141315',
+        'dunkel' => '#232224',
         'schrift' => '',
         'schrift_css' => '',
         'fusszeile' => (string) zr_cfg('fusszeile', ''),

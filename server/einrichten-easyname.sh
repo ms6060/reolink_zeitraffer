@@ -40,7 +40,8 @@ cp -f "$QUELLE/config.example.php" "$QUELLE/zugang.sh" "$APP/"
 ok "Programmteile kopiert"
 
 # 2. Galerie in den Web-Ordner
-cp -f "$QUELLE"/public/*.php "$QUELLE"/public/*.js "$QUELLE"/public/*.css "$WEB/"
+cp -f "$QUELLE"/public/*.php "$QUELLE"/public/*.js "$QUELLE"/public/*.css "$QUELLE"/public/*.png "$WEB/"
+cp -rf "$QUELLE/public/schrift" "$WEB/"
 echo "<?php require __DIR__ . '/_privat/lib/bootstrap.php';" > "$WEB/_init.php"
 ok "Galerie im Web-Ordner"
 
@@ -57,7 +58,7 @@ return [
     'zeitzone' => 'Europe/Vienna',
     'tag_von' => 6,
     'tag_bis' => 20,
-    'fusszeile' => 'e.viSio elektrovisionen gmbh',
+    'fusszeile' => 'CSI - Clever & Smart Immo GmbH',
     'kameras' => [
         '$KAMERA' => [
             'titel' => '$TITEL',
@@ -98,7 +99,7 @@ esac
 
 # 5. Adresse abfragen und testen
 echo
-read -rp "Unter welcher Adresse ist $WEB erreichbar? (z. B. https://www.evisio.at/estherreierweg8): " URL
+read -rp "Unter welcher Adresse ist $WEB erreichbar? (z. B. https://erw8.csi.solutions): " URL
 URL="${URL%/}"
 if [ -n "$URL" ]; then
   ANTWORT=$(curl -s -H "X-Api-Key: $API" "$URL/api.php?aktion=status" || true)
