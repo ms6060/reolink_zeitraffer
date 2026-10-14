@@ -51,6 +51,7 @@ class Kamera:
 class Config:
     def __init__(self, pfad):
         cp = configparser.ConfigParser(interpolation=None)
+        cp.BOOLEAN_STATES = dict(configparser.ConfigParser.BOOLEAN_STATES, ja=True, nein=False)
         if not cp.read(pfad, encoding="utf-8"):
             raise SystemExit(f"config.ini nicht gefunden: {pfad} (Vorlage: config.example.ini)")
         a = cp["allgemein"]
