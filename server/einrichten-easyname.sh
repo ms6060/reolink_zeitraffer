@@ -10,6 +10,7 @@
 # Kann gefahrlos nochmal ausgefuehrt werden (vorhandene Schluessel bleiben).
 
 set -e
+HOME="$(cd "$HOME" && pwd)"   # ohne abschliessenden Schraegstrich
 QUELLE="$(cd "$(dirname "$0")" && pwd)"
 APP="$HOME/zeitraffer-app"
 DATEN="$HOME/zeitraffer-daten"
@@ -29,7 +30,6 @@ echo
 
 [ -f "$QUELLE/lib/bootstrap.php" ] && [ -f "$QUELLE/public/index.php" ] \
   || fail "Dieses Skript muss im hochgeladenen Ordner 'server' liegen (neben lib/ und public/)."
-command -v php >/dev/null || fail "php nicht gefunden"
 
 # 1. Programmteile nach ~/zeitraffer-app
 mkdir -p "$APP/lib" "$DATEN" "$WEB"
@@ -44,7 +44,7 @@ ok "Galerie im Web-Ordner"
 
 # 3. config.php mit neuen Schluesseln (nur beim ersten Mal)
 if [ ! -f "$APP/config.php" ]; then
-  zufall() { php -r 'echo bin2hex(random_bytes(24));'; }
+  zufall() { head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
   API=$(zufall); T_BAUHERR=$(zufall); T_HOMEPAGE=$(zufall)
   cat > "$APP/config.php" <<EOF
 <?php
@@ -69,18 +69,18 @@ return [
 ];
 EOF
   chmod 600 "$APP/config.php"
+  printf 'API=%s\nBAUHERR=%s\nHOMEPAGE=%s\n' "$API" "$T_BAUHERR" "$T_HOMEPAGE" > "$APP/zugang.txt"
+  chmod 600 "$APP/zugang.txt"
   ok "config.php mit neuen Schluesseln angelegt"
 else
   ok "config.php war schon vorhanden, Schluessel bleiben gleich"
 fi
 
-# Werte aus config.php lesen (auch beim wiederholten Aufruf)
-WERTE=$(php -r '$c = require $argv[1]; $k = $c["kameras"][$argv[2]] ?? [];
-  echo $c["api_schluessel"], "\n";
-  foreach (($k["freigaben"] ?? []) as $t => $n) echo $n, "=", $t, "\n";' "$APP/config.php" "$KAMERA")
-API=$(echo "$WERTE" | sed -n 1p)
-T_BAUHERR=$(echo "$WERTE" | sed -n 's/^Bauherr=//p')
-T_HOMEPAGE=$(echo "$WERTE" | sed -n 's/^Homepage=//p')
+# Werte fuer die Anzeige (auch beim wiederholten Aufruf)
+[ -f "$APP/zugang.txt" ] || fail "$APP/zugang.txt fehlt. config.php loeschen und Skript neu starten."
+API=$(sed -n 's/^API=//p' "$APP/zugang.txt")
+T_BAUHERR=$(sed -n 's/^BAUHERR=//p' "$APP/zugang.txt")
+T_HOMEPAGE=$(sed -n 's/^HOMEPAGE=//p' "$APP/zugang.txt")
 
 # 4. Hochgeladene Kopie aus dem Web-Ordner entfernen (lib/ und config gehoeren nicht ins Web)
 case "$QUELLE" in
@@ -102,7 +102,9 @@ if [ -n "$URL" ]; then
   ANTWORT=$(curl -s -H "X-Api-Key: $API" "$URL/api.php?aktion=status" || true)
   case "$ANTWORT" in
     *'"ok":true'*) ok "Server antwortet: $ANTWORT" ;;
-    *) echo "  [FEHLT] Kein gueltige Antwort von $URL/api.php"; echo "          Antwort: ${ANTWORT:0:300}" ;;
+    *) echo "  [FEHLT] Keine gueltige Antwort von $URL/api.php"
+       echo "          Antwort: ${ANTWORT:0:300}"
+       echo "          Tipp: Im easyname-Controlpanel fuer diese Domain PHP 8 einstellen." ;;
   esac
 fi
 [ -n "$URL" ] || URL="https://DEINE-ADRESSE"
