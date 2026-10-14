@@ -1,0 +1,9 @@
+# Zugangsdaten
+abholer/config.ini
+server/config.php
+
+# Laufzeitdaten und Programme
+abholer/daten/
+abholer/neolink/
+abholer/ffmpeg/
+__pycache__/
