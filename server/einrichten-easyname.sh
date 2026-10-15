@@ -58,7 +58,7 @@ return [
     'zeitzone' => 'Europe/Vienna',
     'tag_von' => 6,
     'tag_bis' => 20,
-    'fusszeile' => 'CSI - Clever & Smart Immo GmbH',
+    'fusszeile' => '© clever & smart immo gmbh',
     'kameras' => [
         '$KAMERA' => [
             'titel' => '$TITEL',

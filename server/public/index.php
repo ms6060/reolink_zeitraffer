@@ -118,11 +118,12 @@ $v = ZR_VERSION;
 <?php if (!$einbetten): ?>
 <div class="leiste-oben">
   <div class="leiste-innen">
-    <?php if ($design['logo'] !== ''): ?>
-      <img class="logo" src="<?= h($design['logo']) ?>" alt="<?= h($design['firma']) ?>">
-    <?php else: ?>
-      <span class="firma"><?= h($design['firma']) ?></span>
-    <?php endif; ?>
+    <div class="marke">
+      <?php if ($design['logo'] !== ''): ?>
+        <img class="logo" src="<?= h($design['logo']) ?>" alt="<?= h($design['firma']) ?>">
+      <?php endif; ?>
+      <h1><?= h($titel) ?></h1>
+    </div>
     <?php if ($token === ''): ?>
       <a class="abmelden" href="?abmelden=1">Abmelden</a>
     <?php endif; ?>
@@ -132,7 +133,7 @@ $v = ZR_VERSION;
 <div class="seite">
   <header class="kopf">
     <div class="kopf-text">
-      <h1><?= h($titel) ?></h1>
+      <?php if ($einbetten): ?><h1><?= h($titel) ?></h1><?php endif; ?>
       <p class="stand" id="stand">Lade …</p>
     </div>
     <nav class="reiter" role="tablist">

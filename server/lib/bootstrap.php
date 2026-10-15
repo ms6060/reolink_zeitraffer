@@ -119,7 +119,7 @@ function zr_zugang(): ?array
 function zr_design(array $kamera): array
 {
     $standard = [
-        'firma' => 'CSI - Clever & Smart Immo GmbH',
+        'firma' => 'clever & smart immo gmbh',
         'logo' => 'logo.png',
         'akzent' => '#e9e9ea',
         'akzent_text' => '#141315',

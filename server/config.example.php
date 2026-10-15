@@ -19,12 +19,12 @@ return [
     'tag_bis' => 20,
 
     // Fusszeile in der Galerie (leer = keine).
-    'fusszeile' => 'CSI - Clever & Smart Immo GmbH',
+    'fusszeile' => '© clever & smart immo gmbh',
 
     // Erscheinungsbild (optional, gilt fuer alle Kameras; je Kamera mit 'design' ueberschreibbar).
     // Logo-Datei in den Web-Ordner legen und hier den Dateinamen eintragen.
     'design' => [
-        'firma' => 'CSI - Clever & Smart Immo GmbH',
+        'firma' => 'clever & smart immo gmbh',
         'logo' => 'logo.png',      // Datei im Web-Ordner, leer = Firmenname als Text
         'akzent' => '#e9e9ea',     // Knoepfe, Markierungen (Silber)
         'akzent_text' => '#141315',// Schrift auf Akzentfarbe

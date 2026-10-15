@@ -1,4 +1,4 @@
-/* CSI - Clever & Smart Immo GmbH · Zeitraffer-Galerie */
+/* clever & smart immo gmbh · Zeitraffer-Galerie */
 
 @font-face { font-family: "Capoon"; src: url(schrift/capoon-thin.woff2) format("woff2"); font-weight: 250; font-display: swap; }
 @font-face { font-family: "Capoon"; src: url(schrift/capoon-light.woff2) format("woff2"); font-weight: 300; font-display: swap; }
@@ -31,7 +31,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 a { color: var(--text); }
-.seite { max-width: 1200px; margin: 0 auto; padding: 28px 16px 32px; }
+.seite { max-width: 1200px; margin: 0 auto; padding: 16px 16px 32px; }
 body.einbetten { background: transparent; }
 body.einbetten .seite { padding: 0; max-width: none; }
 
@@ -39,10 +39,11 @@ body.einbetten .seite { padding: 0; max-width: none; }
 .leiste-oben { background: var(--dunkel); border-bottom: 1px solid #000; }
 .leiste-innen {
   max-width: 1200px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center;
-  justify-content: space-between; gap: 16px; min-height: 96px;
+  justify-content: space-between; gap: 16px; min-height: 84px;
 }
-.leiste-oben .logo { height: 76px; width: 76px; display: block; }
-.leiste-oben .firma { font-family: var(--titel); font-weight: 500; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; }
+.leiste-oben .logo { height: 64px; width: 64px; display: block; flex: none; }
+.marke { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.marke h1 { font-size: clamp(1rem, 2.2vw, 1.45rem); }
 .abmelden {
   font-family: var(--titel); font-weight: 500; text-transform: uppercase; letter-spacing: .1em; font-size: .85rem;
   color: var(--text); text-decoration: none; padding: 6px 0;
@@ -52,14 +53,14 @@ body.einbetten .seite { padding: 0; max-width: none; }
 /* Titel */
 .kopf {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
-  flex-wrap: wrap; margin-bottom: 20px;
+  flex-wrap: wrap; margin-bottom: 12px;
 }
 body.einbetten .kopf { margin-bottom: 10px; }
 h1 {
   font-family: var(--titel); font-weight: 500; text-transform: lowercase;
   font-size: clamp(1.3rem, 3vw, 2.1rem); letter-spacing: .03em; margin: 0; line-height: 1.2; text-wrap: balance;
 }
-.stand { margin: 4px 0 0; color: var(--leise); font-family: var(--titel); font-weight: 300; text-transform: lowercase; font-size: 1rem; letter-spacing: .05em; }
+.stand { margin: 0; color: var(--leise); font-family: var(--titel); font-weight: 300; text-transform: lowercase; font-size: 1rem; letter-spacing: .05em; }
 
 /* Reiter als unterstrichene Textlinks */
 .reiter { display: flex; gap: 22px; }
@@ -139,8 +140,8 @@ input[type=range] { width: 100%; accent-color: var(--akzent); margin: 8px 0 12px
 .hinweis { color: var(--leise); }
 
 .fuss {
-  margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--linie); font-size: .82rem; color: var(--leise);
-  text-align: center; letter-spacing: .04em;
+  margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--linie); font-size: .95rem; color: var(--leise);
+  text-align: center; letter-spacing: .06em; font-family: var(--titel); font-weight: 300; text-transform: lowercase;
 }
 
 /* Anmeldung */
@@ -168,8 +169,11 @@ body.anmeldung {
 body.anmeldung .fuss { border-top: 0; margin-top: 40px; }
 
 @media (max-width: 600px) {
-  .leiste-innen { min-height: 72px; }
-  .leiste-oben .logo { height: 56px; width: 56px; }
+  .leiste-innen { min-height: 64px; padding: 8px 16px; }
+  .leiste-oben .logo { height: 46px; width: 46px; }
+  .marke { gap: 12px; }
+  .marke h1 { font-size: 1rem; }
+  .stand { font-size: .85rem; }
   .steuerung { flex-direction: column; align-items: stretch; }
   .tagwahl select { flex: 1; min-width: 0; }
   .abspielen { justify-content: space-between; }
