@@ -363,7 +363,8 @@ def ansicht_standard(z, schluessel):
     ans = sorted(z.get("ansichten", []), key=lambda a: a["id"])
     if not ans:
         return None
-    wahl = ans[0]
+    # Grundwahl: frueheste Referenz (fuer Bilder, die vor allen Referenzbildern liegen)
+    wahl = min(ans, key=lambda a: a.get("basis") or "")
     for a in ans:
         if not a.get("basis") or a["basis"] <= schluessel:
             if not wahl.get("basis") or (a.get("basis") and a["basis"] >= wahl["basis"]):

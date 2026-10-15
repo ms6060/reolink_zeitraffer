@@ -432,7 +432,13 @@ function zr_lage_fuer_bild(string $slug, string $tag, string $zeit, ?array $z = 
         return $e;
     }
     $schluessel = "$tag/$zeit";
+    // Grundwahl: Kameraposition mit dem fruehesten Referenzbild (fuer Bilder vor allen Referenzen)
     $wahl = $z['ansichten'][0];
+    foreach ($z['ansichten'] as $a) {
+        if ($a['basis'] === null || ($wahl['basis'] !== null && strcmp($a['basis'], $wahl['basis']) < 0)) {
+            $wahl = $a;
+        }
+    }
     foreach ($z['ansichten'] as $a) {
         if ($a['basis'] === null || strcmp($a['basis'], $schluessel) <= 0) {
             if ($wahl['basis'] === null || ($a['basis'] !== null && strcmp($a['basis'], (string) $wahl['basis']) >= 0)) {
