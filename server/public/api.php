@@ -3,6 +3,7 @@
 //
 //   GET  api.php?aktion=status
 //   GET  api.php?aktion=zonen&kamera=SLUG
+//   GET  api.php?aktion=maske&kamera=SLUG&b=BREITE&h=HOEHE   (PNG)
 //   POST api.php?aktion=bild&kamera=SLUG&tag=JJJJ-MM-TT&zeit=HHMMSS     (Body: JPEG)
 //   POST api.php?aktion=video&kamera=SLUG&name=NAME&offset=N&fertig=0|1 (Body: Teilstueck)
 declare(strict_types=1);
@@ -36,7 +37,20 @@ $basis = zr_kamera_pfad($slug);
 
 if ($aktion === 'zonen') {
     // Fuer den Abholer, damit die Videos gleich verpixelt werden
-    zr_json(['ok' => true] + zr_zonen($slug));
+    zr_json(['ok' => true, 'ausnahmen' => zr_ausnahmen($slug)] + zr_zonen($slug));
+}
+
+if ($aktion === 'maske') {
+    // Maske in Videogroesse (weiss = verpixeln)
+    $b = (int) ($_GET['b'] ?? 0);
+    $h = (int) ($_GET['h'] ?? 0);
+    if ($b < 16 || $h < 16 || $b > 4096 || $h > 4096) {
+        zr_fehler(400, 'Groesse ungueltig');
+    }
+    header('Content-Type: image/png');
+    header('Cache-Control: no-store');
+    echo zr_maske_png(zr_zonen($slug)['zonen'], $b, $h);
+    exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

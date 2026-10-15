@@ -1,8 +1,9 @@
 <?php
 // Bereiche zum Verpixeln verwalten. Nur fuer angemeldete Admins, mit CSRF-Schutz.
 //   GET  zonen.php                        aktuelle Bereiche
-//   POST zonen.php?aktion=speichern       Body JSON {"art":"pixel|unscharf","zonen":[{x,y,b,h},...]}
+//   POST zonen.php?aktion=speichern       Body JSON {"art":"pixel|unscharf","zonen":[{"p":[[x,y],...]},...]}
 //   POST zonen.php?aktion=neu&ab=N        bestehende Bilder neu verpixeln (stapelweise)
+//   POST zonen.php?aktion=ausnahme        Body JSON {"tag","zeit","an":true|false}
 declare(strict_types=1);
 require __DIR__ . '/_init.php';
 
@@ -34,6 +35,16 @@ if ($aktion === 'speichern') {
     }
     $neu = zr_zonen_speichern($slug, (string) ($d['art'] ?? 'pixel'), (array) ($d['zonen'] ?? []));
     zr_json(['ok' => true, 'anzahl_bilder' => count(zr_alle_bilder($slug))] + $neu);
+}
+
+if ($aktion === 'ausnahme') {
+    $d = json_decode((string) file_get_contents('php://input'), true);
+    $tag = (string) ($d['tag'] ?? '');
+    $zeit = (string) ($d['zeit'] ?? '');
+    if (!zr_ist_tag($tag) || !zr_ist_zeit($zeit) || !is_file(zr_kamera_pfad($slug) . "/bilder/$tag/$zeit.jpg")) {
+        zr_fehler(400, 'Bild unbekannt');
+    }
+    zr_json(['ok' => true, 'ausnahmen' => zr_ausnahme_setzen($slug, $tag, $zeit, !empty($d['an']))]);
 }
 
 if ($aktion === 'neu') {

@@ -16,6 +16,7 @@ Nur Python-Standardbibliothek, laeuft unter Windows und Linux (Python 3.8+).
 import argparse
 import configparser
 import datetime as dt
+import hashlib
 import json
 import logging
 import logging.handlers
@@ -29,7 +30,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-VERSION = "1.1"
+VERSION = "1.2"
 HIER = Path(__file__).resolve().parent
 log = logging.getLogger("zeitraffer")
 KEIN_FENSTER = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW unter Windows
@@ -318,7 +319,8 @@ def zonen_holen(cfg, kam):
     cache = cfg.daten / kam.slug / "zonen.json"
     try:
         d = server_anfrage(cfg, {"aktion": "zonen", "kamera": kam.slug}, timeout=30)
-        z = {"art": d.get("art", "pixel"), "version": int(d.get("version", 0)), "zonen": d.get("zonen", [])}
+        z = {"art": d.get("art", "pixel"), "version": int(d.get("version", 0)),
+             "zonen": d.get("zonen", []), "ausnahmen": d.get("ausnahmen", [])}
         cache.parent.mkdir(parents=True, exist_ok=True)
         cache.write_text(json.dumps(z), encoding="utf-8")
         return z
@@ -332,29 +334,96 @@ def zonen_holen(cfg, kam):
             return None
 
 
-def video_filter(cfg, zonen):
-    """ffmpeg-Filter: skalieren und Bereiche verpixeln bzw. weichzeichnen."""
-    skal = f"scale={cfg.video_breite}:-2:flags=lanczos"
-    liste = (zonen or {}).get("zonen") or []
-    if not liste:
+def jpeg_groesse(pfad):
+    """Breite und Hoehe eines JPEG aus dem Dateikopf (ohne Zusatzbibliothek)."""
+    with open(pfad, "rb") as f:
+        if f.read(2) != b"\xff\xd8":
+            raise ValueError("kein JPEG")
+        while True:
+            marke = f.read(2)
+            if len(marke) < 2 or marke[0] != 0xFF:
+                raise ValueError("JPEG-Kopf unlesbar")
+            laenge = int.from_bytes(f.read(2), "big")
+            if marke[1] in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+                f.read(1)
+                h = int.from_bytes(f.read(2), "big")
+                b = int.from_bytes(f.read(2), "big")
+                return b, h
+            f.seek(laenge - 2, 1)
+
+
+def maske_holen(cfg, kam, zonen, breite, hoehe):
+    """Maske (weiss = verpixeln) in Videogroesse vom Server, lokal zwischengespeichert."""
+    pfad = cfg.daten / kam.slug / "masken" / f"maske_{zonen['version']}_{breite}x{hoehe}.png"
+    if pfad.exists():
+        return pfad
+    url = cfg.server_url + ("&" if "?" in cfg.server_url else "?") + urllib.parse.urlencode(
+        {"aktion": "maske", "kamera": kam.slug, "b": breite, "h": hoehe})
+    req = urllib.request.Request(url, headers={"X-Api-Key": cfg.api_schluessel,
+                                               "User-Agent": f"zeitraffer-abholer/{VERSION}"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            daten = r.read()
+    except (urllib.error.URLError, OSError) as e:
+        log.warning("%s: Maske nicht abrufbar: %s", kam.slug, e)
+        return None
+    if not daten.startswith(b"\x89PNG"):
+        log.warning("%s: Maske ungueltig", kam.slug)
+        return None
+    pfad.parent.mkdir(parents=True, exist_ok=True)
+    for alt in pfad.parent.glob("maske_*.png"):
+        alt.unlink(missing_ok=True)
+    pfad.write_bytes(daten)
+    return pfad
+
+
+def ausnahme_bilder(bilder, zonen):
+    """Bildnummern-Bereiche [von, bis] im Video, die ohne Verpixelung gezeigt werden."""
+    frei = set((zonen or {}).get("ausnahmen") or [])
+    bereiche = []
+    for i, b in enumerate(bilder):
+        if f"{b.parent.name}/{b.stem}" in frei:
+            if bereiche and bereiche[-1][1] == i - 1:
+                bereiche[-1][1] = i
+            else:
+                bereiche.append([i, i])
+    return bereiche
+
+
+def video_filter(cfg, zonen, maske, breite, hoehe, frei):
+    """ffmpeg-Argumente: skalieren und per Maske verpixeln bzw. weichzeichnen."""
+    skal = f"scale={breite}:{hoehe}:flags=lanczos"
+    if not maske:
         return ["-vf", f"{skal},format=yuv420p"]
-    block = max(8, round(cfg.video_breite / 60))
-    if (zonen or {}).get("art") == "unscharf":
+    block = max(8, round(breite / 60))
+    if zonen.get("art") == "unscharf":
         effekt = f"gblur=sigma={block * 0.9:.1f}:steps=3"
     else:
         effekt = f"pixelize=w={block}:h={block}"
-    n = len(liste)
-    teile = [f"[0:v]{skal},split={n + 1}[g0]" + "".join(f"[c{i}]" for i in range(n))]
-    for i, z in enumerate(liste):
-        x, y, b, h = (float(z[k]) for k in ("x", "y", "b", "h"))
-        teile.append(f"[c{i}]crop=w=iw*{b:.5f}:h=ih*{h:.5f}:x=iw*{x:.5f}:y=ih*{y:.5f},{effekt}[p{i}]")
-        teile.append(f"[g{i}][p{i}]overlay=x=W*{x:.5f}:y=H*{y:.5f}[g{i + 1}]")
-    teile.append(f"[g{n}]format=yuv420p[aus]")
-    return ["-filter_complex", ";".join(teile), "-map", "[aus]"]
+    mm = "maskedmerge"
+    if frei:
+        # bei diesen Bildnummern das Original durchlassen (Ausnahmen)
+        teile = "+".join(f"between(n,{a},{e})" for a, e in frei)
+        mm += f"=enable='not({teile})'"
+    graph = (f"[0:v]{skal},format=gbrp,split[a][b];[b]{effekt}[e];"
+             f"[1:v]format=gbrp[m];[a][e][m]{mm},format=yuv420p[aus]")
+    return ["-i", str(maske), "-filter_complex", graph, "-map", "[aus]"]
 
 
-def video_bauen(cfg, bilder, ziel, zonen=None):
+def video_bauen(cfg, bilder, ziel, zonen=None, kam=None):
     ziel.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        qb, qh = jpeg_groesse(bilder[-1])
+    except (OSError, ValueError):
+        qb, qh = 16, 9
+    breite = cfg.video_breite
+    hoehe = max(2, int(round(qh * breite / qb / 2)) * 2)
+    maske = None
+    if zonen and zonen.get("zonen"):
+        maske = maske_holen(cfg, kam, zonen, breite, hoehe)
+        if maske is None:
+            return False  # lieber kein Video als ein unverpixeltes
+    frei = ausnahme_bilder(bilder, zonen) if maske else []
     liste = ziel.with_suffix(".txt")
     dauer = 1.0 / cfg.video_fps
 
@@ -369,7 +438,7 @@ def video_bauen(cfg, bilder, ziel, zonen=None):
     tmp = ziel.with_name(ziel.stem + ".neu.mp4")
     cmd = [cfg.ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
            "-f", "concat", "-safe", "0", "-i", str(liste),
-           *video_filter(cfg, zonen),
+           *video_filter(cfg, zonen, maske, breite, hoehe, frei),
            "-r", str(cfg.video_fps), "-c:v", "libx264", "-preset", "medium",
            "-crf", str(cfg.video_crf), "-movflags", "+faststart", str(tmp)]
     start = time.time()
@@ -388,6 +457,17 @@ def video_bauen(cfg, bilder, ziel, zonen=None):
     os.replace(tmp, ziel)
     log.info("Video %s erstellt: %d Bilder, %.0fs", ziel.name, len(bilder), time.time() - start)
     return True
+
+
+def frei_kennung(bilder, zonen):
+    """Kurzer Fingerabdruck der Ausnahmen, die dieses Video betreffen (aendert sich -> neu bauen)."""
+    if not (zonen or {}).get("zonen"):
+        return ""
+    frei = set(zonen.get("ausnahmen") or [])
+    treffer = sorted(f"{b.parent.name}/{b.stem}" for b in bilder if f"{b.parent.name}/{b.stem}" in frei)
+    if not treffer:
+        return ""
+    return "|a" + hashlib.sha1("\n".join(treffer).encode()).hexdigest()[:10]
 
 
 def videos_aktualisieren(cfg, kam, jetzt, alle_neu=False):
@@ -410,10 +490,10 @@ def videos_aktualisieren(cfg, kam, jetzt, alle_neu=False):
         if len(bilder) < 2:
             continue
         name = f"tag-{tag}"
-        kennung = f"{len(bilder)}:{bilder[-1].stem}{zk}"
+        kennung = f"{len(bilder)}:{bilder[-1].stem}{zk}{frei_kennung(bilder, zonen)}"
         if gebaut.get(name) == kennung and (ordner / "videos" / f"{name}.mp4").exists():
             continue
-        if video_bauen(cfg, bilder, ordner / "videos" / f"{name}.mp4", zonen):
+        if video_bauen(cfg, bilder, ordner / "videos" / f"{name}.mp4", zonen, kam):
             gebaut[name] = kennung
             neu = True
 
@@ -429,9 +509,9 @@ def videos_aktualisieren(cfg, kam, jetzt, alle_neu=False):
                 gesehen.add(block)
                 auswahl.append(b)
     if len(auswahl) >= 2:
-        kennung = f"{len(auswahl)}:{auswahl[-1].parent.name}/{auswahl[-1].stem}{zk}"
+        kennung = f"{len(auswahl)}:{auswahl[-1].parent.name}/{auswahl[-1].stem}{zk}{frei_kennung(auswahl, zonen)}"
         if gebaut.get("gesamt") != kennung or not (ordner / "videos" / "gesamt.mp4").exists():
-            if video_bauen(cfg, auswahl, ordner / "videos" / "gesamt.mp4", zonen):
+            if video_bauen(cfg, auswahl, ordner / "videos" / "gesamt.mp4", zonen, kam):
                 gebaut["gesamt"] = kennung
                 neu = True
 

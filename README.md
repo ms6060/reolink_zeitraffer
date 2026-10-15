@@ -84,8 +84,11 @@ Rollen: **Ansicht** (nur anschauen) und **Admin** (für spätere Einstellungen w
 
 Als Admin angemeldet erscheint unter dem Bild die Leiste **admin**:
 
-- **Bereiche verpixeln:** Auf dem Bild Rechtecke aufziehen (Maus oder Finger), mit × entfernen, Art wählen (verpixeln oder unscharf), speichern. Danach werden alle bisherigen Bilder neu verpixelt (Fortschritt wird angezeigt). Die Seite darf man währenddessen schließen; Bilder, die noch fehlen, werden beim ersten Ansehen verpixelt.
+- **Bereiche verpixeln:** Werkzeug wählen: *freihand* (Bereich mit gedrückter Maustaste bzw. dem Finger umfahren, die Linie schließt sich selbst) oder *rechteck* (aufziehen). Mit × entfernen, Art wählen (verpixeln oder unscharf), speichern. Danach werden alle bisherigen Bilder neu verpixelt (Fortschritt wird angezeigt). Die Seite darf man währenddessen schließen; Bilder, die noch fehlen, werden beim ersten Ansehen verpixelt.
 - **Original anzeigen:** zeigt Admins die unveränderten Bilder.
+- **Dieses Bild ohne Verpixelung:** gibt ein einzelnes Bild für alle frei, z. B. wenn ein Bagger den verpixelten Bereich verdeckt. Gilt auch im Video. In der Vorschauleiste mit „frei“ markiert (nur für Admins sichtbar).
+
+Die Bereiche hängen an der Bildposition. Die Kamera daher fest ausrichten (automatische Verfolgung aus, feste Wachposition), sonst passen die Bereiche nach einem Schwenk nicht mehr.
 
 Die Originale bleiben in `_privat` erhalten. Alle anderen (Ansicht-Zugänge und Homepage-Link) sehen ausschließlich die verpixelte Fassung. Videos werden vom Abholer ebenfalls verpixelt erstellt; nach einer Änderung der Bereiche sind sie für einige Minuten ausgeblendet, bis die neue Fassung hochgeladen ist.
 

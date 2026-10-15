@@ -25,7 +25,10 @@
   function bildUrl(typ, t, z) {
     var p = { typ: typ, tag: t, zeit: z };
     if (zeigeOriginal || bearbeiten) p.original = '1';
-    else if (daten && daten.zv) p.v = daten.zv; // neue Bereiche = neue Adresse, kein alter Cache
+    else {
+      if (daten && daten.zv) p.v = daten.zv;  // neue Bereiche = neue Adresse, kein alter Cache
+      if (istAusnahme(t, z)) p.a = '1';        // Ausnahme = eigene Adresse
+    }
     return url(p);
   }
 
@@ -106,7 +109,7 @@
     l.innerHTML = '';
     sichtbar.forEach(function (z, i) {
       var b = document.createElement('button');
-      b.className = 'mini';
+      b.className = 'mini' + (CSRF && istAusnahme(tag, z) ? ' ausnahme' : '');
       b.title = zeitText(z) + ' Uhr';
       var img = document.createElement('img');
       img.loading = 'lazy';
@@ -150,6 +153,7 @@
     }
     vorladen(index + 1); vorladen(index + 2);
     if (bearbeiten) ebeneAusrichten();
+    if (CSRF) ausnahmeAnzeigen();
   }
 
   function abspielen() {
@@ -239,20 +243,45 @@
     e.style.height = h + 'px';
   }
 
+  var SVG = 'http://www.w3.org/2000/svg';
+
   function zonenZeichnen() {
     var e = $('zonen-ebene');
     e.innerHTML = '';
+    var svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('viewBox', '0 0 1000 1000');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('class', 'zonen-svg');
+    var muster = document.createElementNS(SVG, 'pattern');
+    muster.setAttribute('id', 'schraffur');
+    muster.setAttribute('patternUnits', 'userSpaceOnUse');
+    muster.setAttribute('width', '16'); muster.setAttribute('height', '16');
+    muster.setAttribute('patternTransform', 'rotate(45)');
+    muster.innerHTML = '<rect width="8" height="16" fill="rgba(255,255,255,.35)"/><rect x="8" width="8" height="16" fill="rgba(0,0,0,.3)"/>';
+    var defs = document.createElementNS(SVG, 'defs');
+    defs.appendChild(muster);
+    svg.appendChild(defs);
+    bearbeiten.zonen.forEach(function (z) {
+      var pg = document.createElementNS(SVG, 'polygon');
+      pg.setAttribute('points', z.p.map(function (q) { return (q[0] * 1000) + ',' + (q[1] * 1000); }).join(' '));
+      pg.setAttribute('class', 'zone-flaeche');
+      svg.appendChild(pg);
+    });
+    var linie = document.createElementNS(SVG, 'polyline');
+    linie.setAttribute('class', 'zone-linie');
+    linie.setAttribute('id', 'zonen-linie');
+    svg.appendChild(linie);
+    e.appendChild(svg);
     bearbeiten.zonen.forEach(function (z, i) {
-      var d = document.createElement('div');
-      d.className = 'zone';
-      d.style.left = (z.x * 100) + '%';
-      d.style.top = (z.y * 100) + '%';
-      d.style.width = (z.b * 100) + '%';
-      d.style.height = (z.h * 100) + '%';
+      // Loeschknopf an der rechten oberen Ecke des Bereichs
+      var maxX = 0, minY = 1;
+      z.p.forEach(function (q) { if (q[0] > maxX) maxX = q[0]; if (q[1] < minY) minY = q[1]; });
       var x = document.createElement('button');
       x.className = 'zone-x';
       x.type = 'button';
       x.textContent = '×';
+      x.style.left = (maxX * 100) + '%';
+      x.style.top = (minY * 100) + '%';
       x.setAttribute('aria-label', 'Bereich entfernen');
       x.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
       x.addEventListener('click', function (ev) {
@@ -260,8 +289,7 @@
         bearbeiten.zonen.splice(i, 1);
         zonenZeichnen();
       });
-      d.appendChild(x);
-      e.appendChild(d);
+      e.appendChild(x);
     });
     $('zonen-status').textContent = bearbeiten.zonen.length
       ? bearbeiten.zonen.length + (bearbeiten.zonen.length === 1 ? ' Bereich' : ' Bereiche')
@@ -273,7 +301,7 @@
     fetch('zonen.php', { cache: 'no-store', credentials: 'same-origin' })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (d) {
-        bearbeiten = { art: d.art, zonen: d.zonen.slice() };
+        bearbeiten = { art: d.art, zonen: d.zonen.map(function (z) { return { p: z.p.slice() }; }) };
         $('zonen-art').value = d.art;
         $('admin-leiste').hidden = true;
         $('zonen-leiste').hidden = false;
@@ -340,50 +368,93 @@
       });
   }
 
-  // Rechteck aufziehen (Maus, Stift, Finger)
+  // Bereich zeichnen (Maus, Stift, Finger): Freihand-Linie oder Rechteck
+  function werkzeug() {
+    var w = document.querySelector('input[name=werkzeug]:checked');
+    return w ? w.value : 'frei';
+  }
   (function () {
-    var e = $('zonen-ebene'), start = null, neu = null;
+    var e = $('zonen-ebene'), punkte = null;
     function pos(ev) {
       var r = e.getBoundingClientRect();
-      return {
-        x: Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)),
-        y: Math.max(0, Math.min(1, (ev.clientY - r.top) / r.height))
-      };
+      return [
+        Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)),
+        Math.max(0, Math.min(1, (ev.clientY - r.top) / r.height))
+      ];
+    }
+    function rechteck(a, b) {
+      var x1 = Math.min(a[0], b[0]), x2 = Math.max(a[0], b[0]);
+      var y1 = Math.min(a[1], b[1]), y2 = Math.max(a[1], b[1]);
+      return [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
+    }
+    function vorschau(liste, schliessen) {
+      var l = $('zonen-linie');
+      if (!l) return;
+      var pts = liste.concat(schliessen && liste.length > 2 ? [liste[0]] : []);
+      l.setAttribute('points', pts.map(function (q) { return (q[0] * 1000) + ',' + (q[1] * 1000); }).join(' '));
     }
     e.addEventListener('pointerdown', function (ev) {
-      if (!bearbeiten) return;
-      start = pos(ev);
-      neu = document.createElement('div');
-      neu.className = 'zone neu';
-      e.appendChild(neu);
+      if (!bearbeiten || ev.button > 0) return;
+      punkte = [pos(ev)];
       e.setPointerCapture(ev.pointerId);
       ev.preventDefault();
     });
     e.addEventListener('pointermove', function (ev) {
-      if (!start) return;
+      if (!punkte) return;
       var p = pos(ev);
-      neu.style.left = Math.min(start.x, p.x) * 100 + '%';
-      neu.style.top = Math.min(start.y, p.y) * 100 + '%';
-      neu.style.width = Math.abs(p.x - start.x) * 100 + '%';
-      neu.style.height = Math.abs(p.y - start.y) * 100 + '%';
+      if (werkzeug() === 'rechteck') {
+        punkte = [punkte[0], p];
+        vorschau(rechteck(punkte[0], p), true);
+      } else {
+        var l = punkte[punkte.length - 1];
+        if (Math.abs(p[0] - l[0]) + Math.abs(p[1] - l[1]) > 0.004) punkte.push(p); // Linie ausduennen
+        vorschau(punkte, false);
+      }
     });
-    function ende(ev) {
-      if (!start) return;
-      var p = pos(ev);
-      var z = { x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), b: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) };
-      start = null;
-      if (z.b > 0.015 && z.h > 0.015) bearbeiten.zonen.push(z);
+    function ende() {
+      if (!punkte) return;
+      var liste = werkzeug() === 'rechteck'
+        ? (punkte.length > 1 ? rechteck(punkte[0], punkte[1]) : [])
+        : punkte;
+      punkte = null;
+      if (liste.length >= 3) {
+        var xs = liste.map(function (q) { return q[0]; }), ys = liste.map(function (q) { return q[1]; });
+        if (Math.max.apply(null, xs) - Math.min.apply(null, xs) > 0.015 &&
+            Math.max.apply(null, ys) - Math.min.apply(null, ys) > 0.015) {
+          bearbeiten.zonen.push({ p: liste.slice(0, 400) });
+        }
+      }
       zonenZeichnen();
     }
     e.addEventListener('pointerup', ende);
-    e.addEventListener('pointercancel', function () { start = null; zonenZeichnen(); });
+    e.addEventListener('pointercancel', function () { punkte = null; zonenZeichnen(); });
   })();
+
+  // ------------------------------------------------------------------ Admin: Ausnahme pro Bild
+
+  function istAusnahme(t, z) { return !!(daten && daten.ausnahmen && daten.ausnahmen.indexOf(t + '/' + z) >= 0); }
+
+  function ausnahmeAnzeigen() {
+    var z = sichtbar[index];
+    var k = $('ausnahme');
+    if (!k) return;
+    k.checked = !!z && istAusnahme(tag, z);
+    k.disabled = !z;
+  }
 
   if (CSRF) {
     $('original-zeigen').addEventListener('change', function () { zeigeOriginal = this.checked; neuZeichnen(); });
     $('zonen-bearbeiten').addEventListener('click', bearbeitenStarten);
     $('zonen-abbrechen').addEventListener('click', bearbeitenBeenden);
     $('zonen-speichern').addEventListener('click', speichern);
+    $('ausnahme').addEventListener('change', function () {
+      var k = this, z = sichtbar[index], an = k.checked;
+      k.disabled = true;
+      post('zonen.php?aktion=ausnahme', { tag: tag, zeit: z, an: an })
+        .then(function (d) { daten.ausnahmen = d.ausnahmen; neuZeichnen(); })
+        .catch(function (err) { k.checked = !an; alert('Nicht gespeichert: ' + err.message); })
+        .then(function () { k.disabled = false; });
+    });
     $('hauptbild').addEventListener('load', function () { if (bearbeiten) ebeneAusrichten(); });
     window.addEventListener('resize', function () { if (bearbeiten) ebeneAusrichten(); });
   }

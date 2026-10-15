@@ -154,11 +154,16 @@ $v = ZR_VERSION;
     <div class="admin-leiste" id="admin-leiste" hidden>
       <span class="admin-marke">admin</span>
       <label class="schalter"><input type="checkbox" id="original-zeigen"> Original anzeigen</label>
+      <label class="schalter" title="Nur dieses Bild wird allen ohne Verpixelung gezeigt"><input type="checkbox" id="ausnahme"> Dieses Bild ohne Verpixelung</label>
       <button class="text-knopf" id="zonen-bearbeiten">Bereiche verpixeln</button>
     </div>
     <div class="zonen-leiste" id="zonen-leiste" hidden>
-      <p class="zonen-hinweis">Auf dem Bild Rechtecke aufziehen. Mit × entfernen. Gilt für alle Bilder dieser Kamera.</p>
+      <p class="zonen-hinweis">Freihand: Bereich mit gedrückter Maustaste bzw. dem Finger umfahren, die Linie schließt sich von selbst. Rechteck: aufziehen. Mit × entfernen. Gilt für alle Bilder dieser Kamera.</p>
       <div class="zonen-aktionen">
+        <div class="werkzeuge" role="radiogroup" aria-label="Werkzeug">
+          <label><input type="radio" name="werkzeug" value="frei" checked> freihand</label>
+          <label><input type="radio" name="werkzeug" value="rechteck"> rechteck</label>
+        </div>
         <select id="zonen-art" aria-label="Art">
           <option value="pixel">verpixeln</option>
           <option value="unscharf">unscharf</option>

@@ -51,6 +51,7 @@ zr_json([
     'titel' => (string) ($kamera['titel'] ?? $slug),
     'rolle' => $rolle,
     'zv' => $zv,
+    'ausnahmen' => zr_ausnahmen($slug),
     'tage' => $tage,
     'videos' => $videos,
     'tag_von' => (int) ($kamera['tag_von'] ?? zr_cfg('tag_von', 6)),

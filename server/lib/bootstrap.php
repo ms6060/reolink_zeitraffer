@@ -2,7 +2,7 @@
 // Gemeinsame Funktionen fuer den Zeitraffer-Server.
 declare(strict_types=1);
 
-const ZR_VERSION = '1.3';
+const ZR_VERSION = '1.4';
 
 $zrConfigDatei = dirname(__DIR__) . '/config.php';
 if (!is_file($zrConfigDatei)) {
@@ -208,8 +208,9 @@ function zr_verkleinern(string $jpeg, int $breite, string $ziel): void
 
 /**
  * Bereiche je Kamera in DATEN/<slug>/zonen.json:
- *   {"art":"pixel|unscharf","version":1234567890,"zonen":[{"x":0.1,"y":0.2,"b":0.3,"h":0.1}, ...]}
- * Koordinaten relativ zur Bildgroesse (0..1).
+ *   {"art":"pixel|unscharf","version":1234567890,"zonen":[{"p":[[x,y],[x,y],...]}, ...]}
+ * Jeder Bereich ist ein Vieleck (Freihand oder Rechteck), Koordinaten relativ zur Bildgroesse (0..1).
+ * Aeltere Rechtecke {"x","y","b","h"} werden beim Lesen in Vielecke umgewandelt.
  */
 function zr_zonen(string $slug): array
 {
@@ -225,7 +226,7 @@ function zr_zonen(string $slug): array
     ];
 }
 
-/** Bereinigt eine Zonenliste (Zahlen 0..1, Mindestgroesse, hoechstens 40). */
+/** Bereinigt eine Zonenliste: Vielecke mit 3..400 Punkten im Bereich 0..1, hoechstens 40 Bereiche. */
 function zr_zonen_pruefen($liste): array
 {
     $aus = [];
@@ -233,13 +234,28 @@ function zr_zonen_pruefen($liste): array
         if (!is_array($z)) {
             continue;
         }
-        $x = max(0.0, min(1.0, (float) ($z['x'] ?? 0)));
-        $y = max(0.0, min(1.0, (float) ($z['y'] ?? 0)));
-        $b = max(0.0, min(1.0 - $x, (float) ($z['b'] ?? 0)));
-        $h = max(0.0, min(1.0 - $y, (float) ($z['h'] ?? 0)));
-        if ($b >= 0.005 && $h >= 0.005) {
-            $aus[] = ['x' => round($x, 5), 'y' => round($y, 5), 'b' => round($b, 5), 'h' => round($h, 5)];
+        if (isset($z['x'], $z['y'], $z['b'], $z['h'])) { // altes Rechteck
+            $x = (float) $z['x']; $y = (float) $z['y']; $b = (float) $z['b']; $h = (float) $z['h'];
+            $z = ['p' => [[$x, $y], [$x + $b, $y], [$x + $b, $y + $h], [$x, $y + $h]]];
         }
+        $punkte = [];
+        foreach (is_array($z['p'] ?? null) ? $z['p'] : [] as $pt) {
+            if (is_array($pt) && count($pt) >= 2) {
+                $punkte[] = [round(max(0.0, min(1.0, (float) $pt[0])), 5), round(max(0.0, min(1.0, (float) $pt[1])), 5)];
+            }
+            if (count($punkte) >= 400) {
+                break;
+            }
+        }
+        if (count($punkte) < 3) {
+            continue;
+        }
+        $xs = array_column($punkte, 0);
+        $ys = array_column($punkte, 1);
+        if (max($xs) - min($xs) < 0.005 || max($ys) - min($ys) < 0.005) {
+            continue;
+        }
+        $aus[] = ['p' => $punkte];
         if (count($aus) >= 40) {
             break;
         }
@@ -256,55 +272,140 @@ function zr_zonen_speichern(string $slug, string $art, array $zonen): array
         'version' => max(time(), $alt['version'] + 1),
         'zonen' => zr_zonen_pruefen($zonen),
     ];
-    zr_schreiben(zr_kamera_pfad($slug) . '/zonen.json', json_encode($daten, JSON_PRETTY_PRINT));
+    zr_schreiben(zr_kamera_pfad($slug) . '/zonen.json', json_encode($daten));
     return $daten;
 }
 
-/** Wendet die Bereiche auf ein GD-Bild an (veraendert es direkt). */
+/** Punkte eines Bereichs in Pixel (flache Liste x1,y1,x2,y2,... relativ zu ($ox,$oy)). */
+function zr_punkte_px(array $zone, int $B, int $H, int $ox = 0, int $oy = 0): array
+{
+    $flach = [];
+    foreach ($zone['p'] as [$x, $y]) {
+        $flach[] = (int) round($x * $B) - $ox;
+        $flach[] = (int) round($y * $H) - $oy;
+    }
+    return $flach;
+}
+
+/** Vieleck fuellen (PHP 8.1+ ohne, aeltere mit Punktanzahl). */
+function zr_vieleck($bild, array $flach, int $farbe): void
+{
+    if (PHP_VERSION_ID >= 80100) {
+        imagefilledpolygon($bild, $flach, $farbe);
+    } else {
+        imagefilledpolygon($bild, $flach, intdiv(count($flach), 2), $farbe);
+    }
+}
+
+/** Pixel- bzw. Unschaerfe-Effekt auf ein ganzes (Zwischen-)Bild anwenden. */
+function zr_effekt($bild, string $art, int $block)
+{
+    $b = imagesx($bild);
+    $h = imagesy($bild);
+    if ($art === 'unscharf') {
+        // stark verkleinern, auf 1/6 vergroessern und weichzeichnen, dann auf volle Groesse
+        $kb = max(1, (int) round($b / ($block * 1.5)));
+        $kh = max(1, (int) round($h / ($block * 1.5)));
+        $klein = imagecreatetruecolor($kb, $kh);
+        imagecopyresampled($klein, $bild, 0, 0, 0, 0, $kb, $kh, $b, $h);
+        $mb = max(2, (int) round($b / 6));
+        $mh = max(2, (int) round($h / 6));
+        $mittel = imagecreatetruecolor($mb, $mh);
+        imagecopyresampled($mittel, $klein, 0, 0, 0, 0, $mb, $mh, $kb, $kh);
+        for ($i = 0; $i < 8; $i++) {
+            imagefilter($mittel, IMG_FILTER_GAUSSIAN_BLUR);
+        }
+        $aus = imagecreatetruecolor($b, $h);
+        imagecopyresampled($aus, $mittel, 0, 0, 0, 0, $b, $h, $mb, $mh);
+        return $aus;
+    }
+    $kb = max(1, (int) ceil($b / $block));
+    $kh = max(1, (int) ceil($h / $block));
+    $klein = imagecreatetruecolor($kb, $kh);
+    imagecopyresampled($klein, $bild, 0, 0, 0, 0, $kb, $kh, $b, $h);
+    $aus = imagecreatetruecolor($b, $h);
+    imagecopyresized($aus, $klein, 0, 0, 0, 0, $kb * $block, $kh * $block, $kb, $kh);
+    return $aus;
+}
+
+/**
+ * Wendet die Bereiche auf ein GD-Bild an (veraendert es direkt).
+ * Je Bereich: Effekt auf das umschliessende Rechteck, dann per Schablone nur das Vieleck uebernehmen.
+ */
 function zr_maskieren($bild, array $zonen, string $art): void
 {
     $B = imagesx($bild);
     $H = imagesy($bild);
     $block = max(8, (int) round($B / 60));      // Pixelgroesse: etwa 1/60 der Bildbreite
     foreach ($zonen as $z) {
-        $x = (int) floor($z['x'] * $B);
-        $y = (int) floor($z['y'] * $H);
-        $b = min($B - $x, (int) ceil($z['b'] * $B));
-        $h = min($H - $y, (int) ceil($z['h'] * $H));
+        $xs = array_column($z['p'], 0);
+        $ys = array_column($z['p'], 1);
+        // Raster an den Bloecken ausrichten, damit Pixel in allen Bereichen gleich sitzen
+        $x = (int) (floor(min($xs) * $B / $block) * $block);
+        $y = (int) (floor(min($ys) * $H / $block) * $block);
+        $b = min($B, (int) ceil(max($xs) * $B) + 1) - $x;
+        $h = min($H, (int) ceil(max($ys) * $H) + 1) - $y;
         if ($b < 2 || $h < 2) {
             continue;
         }
-        if ($art === 'unscharf') {
-            // Stark verkleinern und weich wieder vergroessern = kraeftige Unschaerfe
-            // 1) stark verkleinern (Details weg), 2) auf 1/6 vergroessern und mehrfach weichzeichnen,
-            // 3) auf Zonengroesse vergroessern. Ergibt eine weiche, nicht blockige Unschaerfe.
-            $kb = max(1, (int) round($b / ($block * 1.5)));
-            $kh = max(1, (int) round($h / ($block * 1.5)));
-            $klein = imagecreatetruecolor($kb, $kh);
-            imagecopyresampled($klein, $bild, 0, 0, $x, $y, $kb, $kh, $b, $h);
-            $mb = max(2, (int) round($b / 6));
-            $mh = max(2, (int) round($h / 6));
-            $mittel = imagecreatetruecolor($mb, $mh);
-            imagecopyresampled($mittel, $klein, 0, 0, 0, 0, $mb, $mh, $kb, $kh);
-            for ($i = 0; $i < 8; $i++) {
-                imagefilter($mittel, IMG_FILTER_GAUSSIAN_BLUR);
-            }
-            imagecopyresampled($bild, $mittel, $x, $y, 0, 0, $b, $h, $mb, $mh);
-        } else {
-            // Mittelwert je Block, dann hart vergroessern = Pixel
-            $kb = max(1, (int) ceil($b / $block));
-            $kh = max(1, (int) ceil($h / $block));
-            // Mittelwerte ueber genau so viele Pixel bilden, wie spaeter je Block gezeichnet werden
-            $qb = min($kb * $block, $B - $x);
-            $qh = min($kh * $block, $H - $y);
-            $klein = imagecreatetruecolor($kb, $kh);
-            imagecopyresampled($klein, $bild, 0, 0, $x, $y, $kb, $kh, $qb, $qh);
-            // Bloecke in ein Zwischenbild in Zonengroesse, damit nichts ueber den Rand hinausragt
-            $zw = imagecreatetruecolor($b, $h);
-            imagecopyresized($zw, $klein, 0, 0, 0, 0, $kb * $block, $kh * $block, $kb, $kh);
-            imagecopy($bild, $zw, $x, $y, 0, 0, $b, $h);
-        }
+        $teil = imagecreatetruecolor($b, $h);
+        imagecopy($teil, $bild, 0, 0, $x, $y, $b, $h);
+        $eff = zr_effekt($teil, $art, $block);
+
+        // Schablone: aussen Schluesselfarbe, innen durchsichtig
+        $schablone = imagecreatetruecolor($b, $h);
+        $aussen = imagecolorallocate($schablone, 255, 0, 254);
+        $innen = imagecolorallocate($schablone, 1, 254, 2);
+        imagefill($schablone, 0, 0, $aussen);
+        zr_vieleck($schablone, zr_punkte_px($z, $B, $H, $x, $y), $innen);
+        imagecolortransparent($schablone, $innen);
+        imagecopy($eff, $schablone, 0, 0, 0, 0, $b, $h);   // aussen wird Schluesselfarbe
+
+        imagecolortransparent($eff, imagecolorexact($eff, 255, 0, 254));
+        imagecopy($bild, $eff, $x, $y, 0, 0, $b, $h);      // nur das Innere landet im Bild
     }
+}
+
+/** Schwarz-weisse Maske (weiss = verpixeln) als PNG, z. B. fuer die Videos. */
+function zr_maske_png(array $zonen, int $B, int $H): string
+{
+    $m = imagecreatetruecolor($B, $H);
+    $weiss = imagecolorallocate($m, 255, 255, 255);
+    foreach ($zonen as $z) {
+        zr_vieleck($m, zr_punkte_px($z, $B, $H), $weiss);
+    }
+    ob_start();
+    imagepng($m);
+    return (string) ob_get_clean();
+}
+
+// --------------------------------------------------------------------------- Ausnahmen
+
+/** Bilder, die bewusst ohne Verpixelung gezeigt werden: Liste "JJJJ-MM-TT/HHMMSS". */
+function zr_ausnahmen(string $slug): array
+{
+    $datei = zr_kamera_pfad($slug) . '/ausnahmen.json';
+    $d = is_file($datei) ? json_decode((string) file_get_contents($datei), true) : null;
+    return is_array($d) ? array_values(array_filter($d, fn($s) => is_string($s)
+        && preg_match('#^\d{4}-\d{2}-\d{2}/\d{6}$#', $s))) : [];
+}
+
+function zr_ist_ausnahme(string $slug, string $tag, string $zeit): bool
+{
+    return in_array("$tag/$zeit", zr_ausnahmen($slug), true);
+}
+
+function zr_ausnahme_setzen(string $slug, string $tag, string $zeit, bool $an): array
+{
+    $liste = zr_ausnahmen($slug);
+    $schluessel = "$tag/$zeit";
+    $liste = array_values(array_diff($liste, [$schluessel]));
+    if ($an) {
+        $liste[] = $schluessel;
+    }
+    sort($liste);
+    zr_schreiben(zr_kamera_pfad($slug) . '/ausnahmen.json', json_encode($liste));
+    return $liste;
 }
 
 /**
@@ -321,7 +422,7 @@ function zr_bild_fuer_ansicht(string $slug, string $typ, string $tag, string $ze
         return null;
     }
     $zonen = zr_zonen($slug);
-    if (!$zonen['zonen']) {
+    if (!$zonen['zonen'] || zr_ist_ausnahme($slug, $tag, $zeit)) {
         $p = $typ === 'bild' ? $original : "$basis/$typ/$tag/$zeit.jpg";
         return is_file($p) ? $p : $original;
     }

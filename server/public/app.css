@@ -206,14 +206,25 @@ body.anmeldung .fuss { border-top: 0; margin-top: 40px; }
 .zonen-aktionen .voll-knopf { margin-left: auto; }
 
 .zonen-ebene { position: absolute; cursor: crosshair; touch-action: none; user-select: none; -webkit-user-select: none; }
-.zone {
-  position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.6);
-  background: repeating-linear-gradient(45deg, rgba(255,255,255,.28) 0 8px, rgba(0,0,0,.28) 8px 16px);
-}
-.zone.neu { border-style: dashed; background: rgba(255,255,255,.18); }
+.zonen-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.zone-flaeche { fill: url(#schraffur); stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.zone-linie { fill: rgba(255,255,255,.15); stroke: #fff; stroke-width: 2; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
 .zone-x {
-  position: absolute; top: -12px; right: -12px; width: 26px; height: 26px; border-radius: 50%;
+  position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
   border: 1px solid #000; background: #fff; color: #000; font-size: 16px; line-height: 1; cursor: pointer; padding: 0;
+}
+.werkzeuge { display: flex; gap: 4px; border: 1px solid var(--linie); border-radius: var(--radius); padding: 3px; }
+.werkzeuge label {
+  font-family: var(--titel); font-weight: 500; text-transform: lowercase; letter-spacing: .05em; font-size: .9rem;
+  padding: 5px 12px; cursor: pointer; color: var(--leise); border-radius: var(--radius);
+}
+.werkzeuge input { position: absolute; opacity: 0; pointer-events: none; }
+.werkzeuge label:has(input:checked) { background: var(--akzent); color: var(--akzent-text); }
+.werkzeuge label:has(input:focus-visible) { outline: 2px solid var(--akzent); outline-offset: 2px; }
+.mini.ausnahme { position: relative; }
+.mini.ausnahme::after {
+  content: "frei"; position: absolute; top: 3px; right: 3px; font-size: .62rem; padding: 1px 4px;
+  background: var(--akzent); color: var(--akzent-text); border-radius: 2px;
 }
 body.bearbeiten .original, body.bearbeiten .zeitmarke { display: none; }
 body.bearbeiten .steuerung .abspielen { opacity: .35; pointer-events: none; }
