@@ -2,7 +2,7 @@
 // Gemeinsame Funktionen fuer den Zeitraffer-Server.
 declare(strict_types=1);
 
-const ZR_VERSION = '1.2';
+const ZR_VERSION = '1.3';
 
 $zrConfigDatei = dirname(__DIR__) . '/config.php';
 if (!is_file($zrConfigDatei)) {
@@ -202,6 +202,180 @@ function zr_verkleinern(string $jpeg, int $breite, string $ziel): void
     ob_start();
     imagejpeg($klein, null, 80);
     zr_schreiben($ziel, (string) ob_get_clean());
+}
+
+// --------------------------------------------------------------------------- Verpixeln
+
+/**
+ * Bereiche je Kamera in DATEN/<slug>/zonen.json:
+ *   {"art":"pixel|unscharf","version":1234567890,"zonen":[{"x":0.1,"y":0.2,"b":0.3,"h":0.1}, ...]}
+ * Koordinaten relativ zur Bildgroesse (0..1).
+ */
+function zr_zonen(string $slug): array
+{
+    $datei = zr_kamera_pfad($slug) . '/zonen.json';
+    $d = is_file($datei) ? json_decode((string) file_get_contents($datei), true) : null;
+    if (!is_array($d)) {
+        return ['art' => 'pixel', 'version' => 0, 'zonen' => []];
+    }
+    return [
+        'art' => ($d['art'] ?? '') === 'unscharf' ? 'unscharf' : 'pixel',
+        'version' => (int) ($d['version'] ?? 0),
+        'zonen' => zr_zonen_pruefen($d['zonen'] ?? []),
+    ];
+}
+
+/** Bereinigt eine Zonenliste (Zahlen 0..1, Mindestgroesse, hoechstens 40). */
+function zr_zonen_pruefen($liste): array
+{
+    $aus = [];
+    foreach (is_array($liste) ? $liste : [] as $z) {
+        if (!is_array($z)) {
+            continue;
+        }
+        $x = max(0.0, min(1.0, (float) ($z['x'] ?? 0)));
+        $y = max(0.0, min(1.0, (float) ($z['y'] ?? 0)));
+        $b = max(0.0, min(1.0 - $x, (float) ($z['b'] ?? 0)));
+        $h = max(0.0, min(1.0 - $y, (float) ($z['h'] ?? 0)));
+        if ($b >= 0.005 && $h >= 0.005) {
+            $aus[] = ['x' => round($x, 5), 'y' => round($y, 5), 'b' => round($b, 5), 'h' => round($h, 5)];
+        }
+        if (count($aus) >= 40) {
+            break;
+        }
+    }
+    return $aus;
+}
+
+function zr_zonen_speichern(string $slug, string $art, array $zonen): array
+{
+    $alt = zr_zonen($slug);
+    $daten = [
+        'art' => $art === 'unscharf' ? 'unscharf' : 'pixel',
+        // Version immer hoeher als die alte, auch bei zwei Speichervorgaengen in derselben Sekunde
+        'version' => max(time(), $alt['version'] + 1),
+        'zonen' => zr_zonen_pruefen($zonen),
+    ];
+    zr_schreiben(zr_kamera_pfad($slug) . '/zonen.json', json_encode($daten, JSON_PRETTY_PRINT));
+    return $daten;
+}
+
+/** Wendet die Bereiche auf ein GD-Bild an (veraendert es direkt). */
+function zr_maskieren($bild, array $zonen, string $art): void
+{
+    $B = imagesx($bild);
+    $H = imagesy($bild);
+    $block = max(8, (int) round($B / 60));      // Pixelgroesse: etwa 1/60 der Bildbreite
+    foreach ($zonen as $z) {
+        $x = (int) floor($z['x'] * $B);
+        $y = (int) floor($z['y'] * $H);
+        $b = min($B - $x, (int) ceil($z['b'] * $B));
+        $h = min($H - $y, (int) ceil($z['h'] * $H));
+        if ($b < 2 || $h < 2) {
+            continue;
+        }
+        if ($art === 'unscharf') {
+            // Stark verkleinern und weich wieder vergroessern = kraeftige Unschaerfe
+            // 1) stark verkleinern (Details weg), 2) auf 1/6 vergroessern und mehrfach weichzeichnen,
+            // 3) auf Zonengroesse vergroessern. Ergibt eine weiche, nicht blockige Unschaerfe.
+            $kb = max(1, (int) round($b / ($block * 1.5)));
+            $kh = max(1, (int) round($h / ($block * 1.5)));
+            $klein = imagecreatetruecolor($kb, $kh);
+            imagecopyresampled($klein, $bild, 0, 0, $x, $y, $kb, $kh, $b, $h);
+            $mb = max(2, (int) round($b / 6));
+            $mh = max(2, (int) round($h / 6));
+            $mittel = imagecreatetruecolor($mb, $mh);
+            imagecopyresampled($mittel, $klein, 0, 0, 0, 0, $mb, $mh, $kb, $kh);
+            for ($i = 0; $i < 8; $i++) {
+                imagefilter($mittel, IMG_FILTER_GAUSSIAN_BLUR);
+            }
+            imagecopyresampled($bild, $mittel, $x, $y, 0, 0, $b, $h, $mb, $mh);
+        } else {
+            // Mittelwert je Block, dann hart vergroessern = Pixel
+            $kb = max(1, (int) ceil($b / $block));
+            $kh = max(1, (int) ceil($h / $block));
+            // Mittelwerte ueber genau so viele Pixel bilden, wie spaeter je Block gezeichnet werden
+            $qb = min($kb * $block, $B - $x);
+            $qh = min($kh * $block, $H - $y);
+            $klein = imagecreatetruecolor($kb, $kh);
+            imagecopyresampled($klein, $bild, 0, 0, $x, $y, $kb, $kh, $qb, $qh);
+            // Bloecke in ein Zwischenbild in Zonengroesse, damit nichts ueber den Rand hinausragt
+            $zw = imagecreatetruecolor($b, $h);
+            imagecopyresized($zw, $klein, 0, 0, 0, 0, $kb * $block, $kh * $block, $kb, $kh);
+            imagecopy($bild, $zw, $x, $y, 0, 0, $b, $h);
+        }
+    }
+}
+
+/**
+ * Pfad zur Fassung, die Betrachter sehen duerfen (typ: bild|mittel|klein).
+ * Ohne Bereiche ist das das Original. Mit Bereichen wird die verpixelte Fassung
+ * bei Bedarf erzeugt bzw. nach einer Aenderung der Bereiche neu erzeugt.
+ * Liefert null, wenn das Bild nicht existiert oder nicht verpixelt werden kann.
+ */
+function zr_bild_fuer_ansicht(string $slug, string $typ, string $tag, string $zeit): ?string
+{
+    $basis = zr_kamera_pfad($slug);
+    $original = "$basis/bilder/$tag/$zeit.jpg";
+    if (!is_file($original)) {
+        return null;
+    }
+    $zonen = zr_zonen($slug);
+    if (!$zonen['zonen']) {
+        $p = $typ === 'bild' ? $original : "$basis/$typ/$tag/$zeit.jpg";
+        return is_file($p) ? $p : $original;
+    }
+    $ziel = "$basis/zensiert/$typ/$tag/$zeit.jpg";
+    $stempel = "$basis/zensiert/$typ/$tag/$zeit.v";
+    if (is_file($ziel) && is_file($stempel) && (int) file_get_contents($stempel) === $zonen['version']) {
+        return $ziel;
+    }
+    return zr_verpixeln($slug, $tag, $zeit, $zonen) ? $ziel : null;
+}
+
+/** Erzeugt alle drei verpixelten Fassungen eines Bildes. */
+function zr_verpixeln(string $slug, string $tag, string $zeit, ?array $zonen = null): bool
+{
+    if (!function_exists('imagecreatefromjpeg')) {
+        return false; // ohne GD lieber nichts zeigen als das Original
+    }
+    $zonen = $zonen ?? zr_zonen($slug);
+    $basis = zr_kamera_pfad($slug);
+    $bild = @imagecreatefromjpeg("$basis/bilder/$tag/$zeit.jpg");
+    if ($bild === false) {
+        return false;
+    }
+    zr_maskieren($bild, $zonen['zonen'], $zonen['art']);
+    ob_start();
+    imagejpeg($bild, null, 88);
+    $gross = (string) ob_get_clean();
+    zr_schreiben("$basis/zensiert/bild/$tag/$zeit.jpg", $gross);
+    zr_verkleinern($gross, 1280, "$basis/zensiert/mittel/$tag/$zeit.jpg");
+    zr_verkleinern($gross, 320, "$basis/zensiert/klein/$tag/$zeit.jpg");
+    foreach (['bild', 'mittel', 'klein'] as $t) {
+        zr_schreiben("$basis/zensiert/$t/$tag/$zeit.v", (string) $zonen['version']);
+    }
+    return true;
+}
+
+/** Alle Bilder einer Kamera als Liste [tag, zeit], aelteste zuerst. */
+function zr_alle_bilder(string $slug): array
+{
+    $liste = [];
+    foreach (glob(zr_kamera_pfad($slug) . '/bilder/*', GLOB_ONLYDIR) ?: [] as $ordner) {
+        $tag = basename($ordner);
+        if (!zr_ist_tag($tag)) {
+            continue;
+        }
+        foreach (glob("$ordner/*.jpg") ?: [] as $datei) {
+            $z = basename($datei, '.jpg');
+            if (zr_ist_zeit($z)) {
+                $liste[] = [$tag, $z];
+            }
+        }
+    }
+    sort($liste);
+    return $liste;
 }
 
 /** Datei ausliefern, mit Caching und Range-Unterstuetzung (fuer Videos auf iPhone/Safari). */

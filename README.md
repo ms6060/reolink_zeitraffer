@@ -80,6 +80,15 @@ bash _privat/zugang.sh
 
 Rollen: **Ansicht** (nur anschauen) und **Admin** (für spätere Einstellungen wie Verpixeln). Ein gelöschter Zugang ist sofort abgemeldet.
 
+## Verpixeln (Admin)
+
+Als Admin angemeldet erscheint unter dem Bild die Leiste **admin**:
+
+- **Bereiche verpixeln:** Auf dem Bild Rechtecke aufziehen (Maus oder Finger), mit × entfernen, Art wählen (verpixeln oder unscharf), speichern. Danach werden alle bisherigen Bilder neu verpixelt (Fortschritt wird angezeigt). Die Seite darf man währenddessen schließen; Bilder, die noch fehlen, werden beim ersten Ansehen verpixelt.
+- **Original anzeigen:** zeigt Admins die unveränderten Bilder.
+
+Die Originale bleiben in `_privat` erhalten. Alle anderen (Ansicht-Zugänge und Homepage-Link) sehen ausschließlich die verpixelte Fassung. Videos werden vom Abholer ebenfalls verpixelt erstellt; nach einer Änderung der Bereiche sind sie für einige Minuten ausgeblendet, bis die neue Fassung hochgeladen ist.
+
 ## 4. Freigeben und einbetten
 
 - **Bauherr:** Link `https://DOMAIN/zeitraffer/?k=TOKEN-BAUHERR` schicken.

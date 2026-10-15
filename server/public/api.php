@@ -2,6 +2,7 @@
 // Schnittstelle fuer den Abholer. Authentifizierung ueber Header X-Api-Key.
 //
 //   GET  api.php?aktion=status
+//   GET  api.php?aktion=zonen&kamera=SLUG
 //   POST api.php?aktion=bild&kamera=SLUG&tag=JJJJ-MM-TT&zeit=HHMMSS     (Body: JPEG)
 //   POST api.php?aktion=video&kamera=SLUG&name=NAME&offset=N&fertig=0|1 (Body: Teilstueck)
 declare(strict_types=1);
@@ -27,15 +28,20 @@ if ($aktion === 'status') {
     ]);
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    zr_fehler(405, 'Nur POST');
-}
-
 $slug = (string) ($_GET['kamera'] ?? '');
 if (!zr_ist_slug($slug) || !isset(zr_kameras()[$slug])) {
     zr_fehler(404, 'Kamera unbekannt: ' . $slug);
 }
 $basis = zr_kamera_pfad($slug);
+
+if ($aktion === 'zonen') {
+    // Fuer den Abholer, damit die Videos gleich verpixelt werden
+    zr_json(['ok' => true] + zr_zonen($slug));
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    zr_fehler(405, 'Nur POST');
+}
 
 if ($aktion === 'bild') {
     $tag = (string) ($_GET['tag'] ?? '');
@@ -50,6 +56,9 @@ if ($aktion === 'bild') {
     zr_schreiben("$basis/bilder/$tag/$zeit.jpg", $jpeg);
     zr_verkleinern($jpeg, 1280, "$basis/mittel/$tag/$zeit.jpg");
     zr_verkleinern($jpeg, 320, "$basis/klein/$tag/$zeit.jpg");
+    if (zr_zonen($slug)['zonen']) {
+        zr_verpixeln($slug, $tag, $zeit); // gleich erzeugen, damit die Galerie nicht warten muss
+    }
     zr_json(['ok' => true]);
 }
 

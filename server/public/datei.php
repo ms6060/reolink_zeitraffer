@@ -1,7 +1,8 @@
 <?php
-// Liefert ein Bild oder Video aus. Zugriff nur mit Freigabe-Token.
-//   datei.php?k=TOKEN&typ=bild|mittel|klein&tag=JJJJ-MM-TT&zeit=HHMMSS[&download=1]
-//   datei.php?k=TOKEN&typ=video&name=gesamt|tag-JJJJ-MM-TT[&download=1]
+// Liefert ein Bild oder Video aus. Zugriff mit Anmeldung oder Freigabe-Token.
+//   datei.php?typ=bild|mittel|klein&tag=JJJJ-MM-TT&zeit=HHMMSS[&original=1][&download=1]
+//   datei.php?typ=video&name=gesamt|tag-JJJJ-MM-TT[&download=1]
+// Betrachter bekommen immer die verpixelte Fassung. Originale nur fuer Admins (original=1).
 declare(strict_types=1);
 require __DIR__ . '/_init.php';
 
@@ -10,10 +11,11 @@ if ($zugang === null) {
     http_response_code(403);
     exit;
 }
-[$slug] = $zugang;
+[$slug, , $rolle] = $zugang;
 $basis = zr_kamera_pfad($slug);
 $typ = (string) ($_GET['typ'] ?? '');
 $download = ($_GET['download'] ?? '') === '1';
+$original = ($_GET['original'] ?? '') === '1' && $rolle === 'admin';
 
 if (in_array($typ, ['bild', 'mittel', 'klein'], true)) {
     $tag = (string) ($_GET['tag'] ?? '');
@@ -22,10 +24,17 @@ if (in_array($typ, ['bild', 'mittel', 'klein'], true)) {
         http_response_code(400);
         exit;
     }
-    $ordner = ['bild' => 'bilder', 'mittel' => 'mittel', 'klein' => 'klein'][$typ];
-    $pfad = "$basis/$ordner/$tag/$zeit.jpg";
-    if (!is_file($pfad)) {
-        $pfad = "$basis/bilder/$tag/$zeit.jpg"; // Ersatz, falls Verkleinerung fehlt
+    if ($original) {
+        $pfad = $typ === 'bild' ? "$basis/bilder/$tag/$zeit.jpg" : "$basis/$typ/$tag/$zeit.jpg";
+        if (!is_file($pfad)) {
+            $pfad = "$basis/bilder/$tag/$zeit.jpg";
+        }
+    } else {
+        $pfad = zr_bild_fuer_ansicht($slug, $typ, $tag, $zeit);
+        if ($pfad === null) {
+            http_response_code(404);
+            exit;
+        }
     }
     if ($download) {
         header('Content-Disposition: attachment; filename="' . $slug . '_' . $tag . '_' . $zeit . '.jpg"');
@@ -42,7 +51,12 @@ if ($typ === 'video') {
     if ($download) {
         header('Content-Disposition: attachment; filename="' . $slug . '_' . $name . '.mp4"');
     }
-    zr_ausliefern("$basis/videos/$name.mp4", 'video/mp4', 300);
+    $pfad = "$basis/videos/$name.mp4";
+    if (is_file($pfad) && filemtime($pfad) <= zr_zonen($slug)['version']) {
+        http_response_code(404); // noch nicht mit den aktuellen Bereichen verpixelt
+        exit;
+    }
+    zr_ausliefern($pfad, 'video/mp4', 300);
 }
 
 http_response_code(400);

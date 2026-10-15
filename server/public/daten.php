@@ -30,10 +30,13 @@ foreach (glob("$basis/bilder/*", GLOB_ONLYDIR) ?: [] as $ordner) {
 }
 krsort($tage);
 
+$zv = zr_zonen($slug)['version'];
 $videos = [];
 foreach (glob("$basis/videos/*.mp4") ?: [] as $datei) {
     $name = basename($datei, '.mp4');
-    if (zr_ist_video($name)) {
+    // Videos, die vor der letzten Aenderung der Bereiche erstellt wurden, sind noch nicht
+    // (richtig) verpixelt. Sie bleiben ausgeblendet, bis der Abholer die neue Fassung liefert.
+    if (zr_ist_video($name) && filemtime($datei) > $zv) {
         $videos[] = ['name' => $name, 'groesse' => filesize($datei), 'stand' => date('c', filemtime($datei))];
     }
 }
@@ -47,6 +50,7 @@ zr_json([
     'ok' => true,
     'titel' => (string) ($kamera['titel'] ?? $slug),
     'rolle' => $rolle,
+    'zv' => $zv,
     'tage' => $tage,
     'videos' => $videos,
     'tag_von' => (int) ($kamera['tag_von'] ?? zr_cfg('tag_von', 6)),

@@ -29,7 +29,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-VERSION = "1.0"
+VERSION = "1.1"
 HIER = Path(__file__).resolve().parent
 log = logging.getLogger("zeitraffer")
 KEIN_FENSTER = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW unter Windows
@@ -312,7 +312,48 @@ def tagbilder(cfg, kam, tag):
             if ist_tagzeit(cfg, int(b.stem[:2]))]
 
 
-def video_bauen(cfg, bilder, ziel):
+def zonen_holen(cfg, kam):
+    """Bereiche zum Verpixeln vom Server. Bei Verbindungsproblemen die zuletzt bekannten.
+    None = unbekannt (dann keine Videos bauen, damit nichts unverpixelt hinausgeht)."""
+    cache = cfg.daten / kam.slug / "zonen.json"
+    try:
+        d = server_anfrage(cfg, {"aktion": "zonen", "kamera": kam.slug}, timeout=30)
+        z = {"art": d.get("art", "pixel"), "version": int(d.get("version", 0)), "zonen": d.get("zonen", [])}
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(z), encoding="utf-8")
+        return z
+    except (ServerFehler, ValueError, TypeError) as e:
+        try:
+            z = json.loads(cache.read_text(encoding="utf-8"))
+            log.info("%s: Bereiche vom Server nicht abrufbar (%s), verwende letzte bekannte", kam.slug, e)
+            return z
+        except (OSError, ValueError):
+            log.warning("%s: Bereiche unbekannt (%s), Videos werden spaeter erstellt", kam.slug, e)
+            return None
+
+
+def video_filter(cfg, zonen):
+    """ffmpeg-Filter: skalieren und Bereiche verpixeln bzw. weichzeichnen."""
+    skal = f"scale={cfg.video_breite}:-2:flags=lanczos"
+    liste = (zonen or {}).get("zonen") or []
+    if not liste:
+        return ["-vf", f"{skal},format=yuv420p"]
+    block = max(8, round(cfg.video_breite / 60))
+    if (zonen or {}).get("art") == "unscharf":
+        effekt = f"gblur=sigma={block * 0.9:.1f}:steps=3"
+    else:
+        effekt = f"pixelize=w={block}:h={block}"
+    n = len(liste)
+    teile = [f"[0:v]{skal},split={n + 1}[g0]" + "".join(f"[c{i}]" for i in range(n))]
+    for i, z in enumerate(liste):
+        x, y, b, h = (float(z[k]) for k in ("x", "y", "b", "h"))
+        teile.append(f"[c{i}]crop=w=iw*{b:.5f}:h=ih*{h:.5f}:x=iw*{x:.5f}:y=ih*{y:.5f},{effekt}[p{i}]")
+        teile.append(f"[g{i}][p{i}]overlay=x=W*{x:.5f}:y=H*{y:.5f}[g{i + 1}]")
+    teile.append(f"[g{n}]format=yuv420p[aus]")
+    return ["-filter_complex", ";".join(teile), "-map", "[aus]"]
+
+
+def video_bauen(cfg, bilder, ziel, zonen=None):
     ziel.parent.mkdir(parents=True, exist_ok=True)
     liste = ziel.with_suffix(".txt")
     dauer = 1.0 / cfg.video_fps
@@ -328,7 +369,7 @@ def video_bauen(cfg, bilder, ziel):
     tmp = ziel.with_name(ziel.stem + ".neu.mp4")
     cmd = [cfg.ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
            "-f", "concat", "-safe", "0", "-i", str(liste),
-           "-vf", f"scale={cfg.video_breite}:-2:flags=lanczos,format=yuv420p",
+           *video_filter(cfg, zonen),
            "-r", str(cfg.video_fps), "-c:v", "libx264", "-preset", "medium",
            "-crf", str(cfg.video_crf), "-movflags", "+faststart", str(tmp)]
     start = time.time()
@@ -351,6 +392,11 @@ def video_bauen(cfg, bilder, ziel):
 
 def videos_aktualisieren(cfg, kam, jetzt, alle_neu=False):
     ordner = cfg.daten / kam.slug
+    zonen = zonen_holen(cfg, kam)
+    if zonen is None:
+        return False
+    # Aendern sich die Bereiche, aendert sich die Kennung, und alle Videos werden neu gebaut
+    zk = f"|z{zonen['version']}" if zonen.get("version") else ""
     status = status_laden(ordner)
     gebaut = {} if alle_neu else status.get("videos", {})
     heute = jetzt.date().isoformat()
@@ -364,10 +410,10 @@ def videos_aktualisieren(cfg, kam, jetzt, alle_neu=False):
         if len(bilder) < 2:
             continue
         name = f"tag-{tag}"
-        kennung = f"{len(bilder)}:{bilder[-1].stem}"
+        kennung = f"{len(bilder)}:{bilder[-1].stem}{zk}"
         if gebaut.get(name) == kennung and (ordner / "videos" / f"{name}.mp4").exists():
             continue
-        if video_bauen(cfg, bilder, ordner / "videos" / f"{name}.mp4"):
+        if video_bauen(cfg, bilder, ordner / "videos" / f"{name}.mp4", zonen):
             gebaut[name] = kennung
             neu = True
 
@@ -383,9 +429,9 @@ def videos_aktualisieren(cfg, kam, jetzt, alle_neu=False):
                 gesehen.add(block)
                 auswahl.append(b)
     if len(auswahl) >= 2:
-        kennung = f"{len(auswahl)}:{auswahl[-1].parent.name}/{auswahl[-1].stem}"
+        kennung = f"{len(auswahl)}:{auswahl[-1].parent.name}/{auswahl[-1].stem}{zk}"
         if gebaut.get("gesamt") != kennung or not (ordner / "videos" / "gesamt.mp4").exists():
-            if video_bauen(cfg, auswahl, ordner / "videos" / "gesamt.mp4"):
+            if video_bauen(cfg, auswahl, ordner / "videos" / "gesamt.mp4", zonen):
                 gebaut["gesamt"] = kennung
                 neu = True
 
