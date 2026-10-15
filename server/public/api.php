@@ -4,7 +4,8 @@
 //   GET  api.php?aktion=status
 //   GET  api.php?aktion=zonen&kamera=SLUG
 //   GET  api.php?aktion=maske&kamera=SLUG&b=BREITE&h=HOEHE   (PNG)
-//   POST api.php?aktion=bild&kamera=SLUG&tag=JJJJ-MM-TT&zeit=HHMMSS     (Body: JPEG)
+//   POST api.php?aktion=bild&kamera=SLUG&tag=JJJJ-MM-TT&zeit=HHMMSS[&lage=JSON]  (Body: JPEG)
+//   POST api.php?aktion=lage&kamera=SLUG   (Body JSON {"JJJJ-MM-TT/HHMMSS": {"a":1,"m":[6 Zahlen],"q":".."}})
 //   POST api.php?aktion=video&kamera=SLUG&name=NAME&offset=N&fertig=0|1 (Body: Teilstueck)
 declare(strict_types=1);
 require __DIR__ . '/_init.php';
@@ -37,7 +38,7 @@ $basis = zr_kamera_pfad($slug);
 
 if ($aktion === 'zonen') {
     // Fuer den Abholer, damit die Videos gleich verpixelt werden
-    zr_json(['ok' => true, 'ausnahmen' => zr_ausnahmen($slug)] + zr_zonen($slug));
+    zr_json(['ok' => true, 'ausnahmen' => zr_ausnahmen($slug), 'lageversion' => zr_lageversion($slug)] + zr_zonen($slug));
 }
 
 if ($aktion === 'maske') {
@@ -49,7 +50,9 @@ if ($aktion === 'maske') {
     }
     header('Content-Type: image/png');
     header('Cache-Control: no-store');
-    echo zr_maske_png(zr_zonen($slug)['zonen'], $b, $h);
+    // Ohne Bildvergleich am Abholer: Bereiche der neuesten Kameraposition, unverschoben
+    $ansichten = zr_zonen($slug)['ansichten'];
+    echo zr_maske_png($ansichten ? end($ansichten)['zonen'] : [], $b, $h);
     exit;
 }
 
@@ -70,10 +73,37 @@ if ($aktion === 'bild') {
     zr_schreiben("$basis/bilder/$tag/$zeit.jpg", $jpeg);
     zr_verkleinern($jpeg, 1280, "$basis/mittel/$tag/$zeit.jpg");
     zr_verkleinern($jpeg, 320, "$basis/klein/$tag/$zeit.jpg");
-    if (zr_zonen($slug)['zonen']) {
+    if (isset($_GET['lage'])) {
+        zr_lage_setzen($slug, ["$tag/$zeit" => json_decode((string) $_GET['lage'], true)], false);
+    }
+    if (zr_hat_zonen(zr_zonen($slug))) {
         zr_verpixeln($slug, $tag, $zeit); // gleich erzeugen, damit die Galerie nicht warten muss
     }
     zr_json(['ok' => true]);
+}
+
+if ($aktion === 'lage') {
+    // Lagen vieler Bilder auf einmal (nach neuem Referenzbild oder Nachberechnung)
+    $d = json_decode((string) file_get_contents('php://input'), true);
+    if (!is_array($d) || count($d) > 5000) {
+        zr_fehler(400, 'Ungueltige Daten');
+    }
+    $geaendert = zr_lage_setzen($slug, $d, true);
+    // betroffene Bilder gleich neu verpixeln (neueste zuerst), soweit die Zeit reicht;
+    // der Rest wird beim ersten Ansehen erledigt
+    if (zr_hat_zonen(zr_zonen($slug))) {
+        @set_time_limit(60);
+        $start = microtime(true);
+        rsort($geaendert);
+        foreach ($geaendert as $k) {
+            if (microtime(true) - $start > 20) {
+                break;
+            }
+            [$t, $z] = explode('/', $k);
+            zr_bild_fuer_ansicht($slug, 'klein', $t, $z);
+        }
+    }
+    zr_json(['ok' => true, 'geaendert' => count($geaendert)]);
 }
 
 if ($aktion === 'video') {

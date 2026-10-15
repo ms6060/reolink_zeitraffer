@@ -158,7 +158,7 @@ $v = ZR_VERSION;
       <button class="text-knopf" id="zonen-bearbeiten">Bereiche verpixeln</button>
     </div>
     <div class="zonen-leiste" id="zonen-leiste" hidden>
-      <p class="zonen-hinweis">Freihand: Bereich mit gedrückter Maustaste bzw. dem Finger umfahren, die Linie schließt sich von selbst. Rechteck: aufziehen. Mit × entfernen. Gilt für alle Bilder dieser Kamera.</p>
+      <p class="zonen-hinweis">Freihand: Bereich mit gedrückter Maustaste bzw. dem Finger umfahren, die Linie schließt sich von selbst. Rechteck: aufziehen. Mit × entfernen. Gilt für alle Bilder dieser Kameraposition; verrutscht die Kamera, wandern die Bereiche automatisch mit. Am besten auf einem Bild ohne Bagger davor zeichnen.</p>
       <div class="zonen-aktionen">
         <div class="werkzeuge" role="radiogroup" aria-label="Werkzeug">
           <label><input type="radio" name="werkzeug" value="frei" checked> freihand</label>
@@ -169,8 +169,10 @@ $v = ZR_VERSION;
           <option value="unscharf">unscharf</option>
         </select>
         <button class="text-knopf" id="zonen-abbrechen">abbrechen</button>
+        <button class="text-knopf zonen-neu" id="zonen-neu" title="Nur nach bewusstem Neuausrichten der Kamera">als neue kameraposition</button>
         <button class="voll-knopf" id="zonen-speichern">speichern</button>
       </div>
+      <p class="zonen-info" id="zonen-info"></p>
       <p class="zonen-status" id="zonen-status" role="status"></p>
     </div>
 

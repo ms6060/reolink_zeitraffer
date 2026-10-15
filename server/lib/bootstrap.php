@@ -2,7 +2,7 @@
 // Gemeinsame Funktionen fuer den Zeitraffer-Server.
 declare(strict_types=1);
 
-const ZR_VERSION = '1.4';
+const ZR_VERSION = '1.5';
 
 $zrConfigDatei = dirname(__DIR__) . '/config.php';
 if (!is_file($zrConfigDatei)) {
@@ -208,22 +208,48 @@ function zr_verkleinern(string $jpeg, int $breite, string $ziel): void
 
 /**
  * Bereiche je Kamera in DATEN/<slug>/zonen.json:
- *   {"art":"pixel|unscharf","version":1234567890,"zonen":[{"p":[[x,y],[x,y],...]}, ...]}
- * Jeder Bereich ist ein Vieleck (Freihand oder Rechteck), Koordinaten relativ zur Bildgroesse (0..1).
- * Aeltere Rechtecke {"x","y","b","h"} werden beim Lesen in Vielecke umgewandelt.
+ *   {"art":"pixel|unscharf","version":123,"ansichten":[{"id":1,"basis":"JJJJ-MM-TT/HHMMSS","zonen":[{"p":[[x,y],...]}]}]}
+ * Eine Ansicht ist eine Kameraposition: Referenzbild (basis) und die darauf gezeichneten Bereiche.
+ * Koordinaten relativ zur Bildgroesse (0..1) im Referenzbild. Aeltere Dateien ("zonen" ohne
+ * Ansichten, Rechtecke) werden beim Lesen umgewandelt.
  */
 function zr_zonen(string $slug): array
 {
     $datei = zr_kamera_pfad($slug) . '/zonen.json';
     $d = is_file($datei) ? json_decode((string) file_get_contents($datei), true) : null;
-    if (!is_array($d)) {
-        return ['art' => 'pixel', 'version' => 0, 'zonen' => []];
+    $d = is_array($d) ? $d : [];
+    $ansichten = [];
+    if (isset($d['ansichten']) && is_array($d['ansichten'])) {
+        foreach ($d['ansichten'] as $a) {
+            if (is_array($a) && (int) ($a['id'] ?? 0) > 0) {
+                $b = (string) ($a['basis'] ?? '');
+                $ansichten[] = [
+                    'id' => (int) $a['id'],
+                    'basis' => preg_match('#^\d{4}-\d{2}-\d{2}/\d{6}$#', $b) ? $b : null,
+                    'zonen' => zr_zonen_pruefen($a['zonen'] ?? []),
+                ];
+            }
+        }
+    } elseif (!empty($d['zonen'])) {
+        $ansichten[] = ['id' => 1, 'basis' => null, 'zonen' => zr_zonen_pruefen($d['zonen'])];
     }
+    usort($ansichten, fn($a, $b) => $a['id'] <=> $b['id']);
     return [
         'art' => ($d['art'] ?? '') === 'unscharf' ? 'unscharf' : 'pixel',
         'version' => (int) ($d['version'] ?? 0),
-        'zonen' => zr_zonen_pruefen($d['zonen'] ?? []),
+        'ansichten' => $ansichten,
     ];
+}
+
+/** Gibt es ueberhaupt Bereiche? */
+function zr_hat_zonen(array $z): bool
+{
+    foreach ($z['ansichten'] as $a) {
+        if ($a['zonen']) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /** Bereinigt eine Zonenliste: Vielecke mit 3..400 Punkten im Bereich 0..1, hoechstens 40 Bereiche. */
@@ -241,7 +267,8 @@ function zr_zonen_pruefen($liste): array
         $punkte = [];
         foreach (is_array($z['p'] ?? null) ? $z['p'] : [] as $pt) {
             if (is_array($pt) && count($pt) >= 2) {
-                $punkte[] = [round(max(0.0, min(1.0, (float) $pt[0])), 5), round(max(0.0, min(1.0, (float) $pt[1])), 5)];
+                // etwas Spielraum ueber den Rand hinaus (bei verschobener Kamera sichtbar)
+                $punkte[] = [round(max(-0.5, min(1.5, (float) $pt[0])), 5), round(max(-0.5, min(1.5, (float) $pt[1])), 5)];
             }
             if (count($punkte) >= 400) {
                 break;
@@ -263,17 +290,194 @@ function zr_zonen_pruefen($liste): array
     return $aus;
 }
 
-function zr_zonen_speichern(string $slug, string $art, array $zonen): array
+function zr_zonen_schreiben(string $slug, array $z): array
 {
     $alt = zr_zonen($slug);
-    $daten = [
-        'art' => $art === 'unscharf' ? 'unscharf' : 'pixel',
-        // Version immer hoeher als die alte, auch bei zwei Speichervorgaengen in derselben Sekunde
-        'version' => max(time(), $alt['version'] + 1),
-        'zonen' => zr_zonen_pruefen($zonen),
-    ];
-    zr_schreiben(zr_kamera_pfad($slug) . '/zonen.json', json_encode($daten));
-    return $daten;
+    // Version immer hoeher als die alte, auch bei zwei Speichervorgaengen in derselben Sekunde
+    $z['version'] = max(time(), $alt['version'] + 1, zr_lageversion($slug) + 1);
+    zr_schreiben(zr_kamera_pfad($slug) . '/zonen.json', json_encode([
+        'art' => $z['art'], 'version' => $z['version'], 'ansichten' => $z['ansichten'],
+    ]));
+    return $z;
+}
+
+/**
+ * Bereiche speichern, die im Bild tag/zeit gezeichnet wurden (Koordinaten dieses Bildes).
+ * $neu = true: als neue Kameraposition mit diesem Bild als Referenz.
+ * Sonst: zur Kameraposition dieses Bildes; die Bereiche werden ins Referenzbild umgerechnet.
+ */
+function zr_zonen_speichern(string $slug, string $art, array $zonen, string $tag, string $zeit, bool $neu): array
+{
+    $z = zr_zonen($slug);
+    $z['art'] = $art === 'unscharf' ? 'unscharf' : 'pixel';
+    $zonen = zr_zonen_pruefen($zonen);
+    $schluessel = "$tag/$zeit";
+    $lage = zr_lage_fuer_bild($slug, $tag, $zeit, $z);
+    $index = null;
+    foreach ($z['ansichten'] as $i => $a) {
+        if ($lage !== null && $a['id'] === $lage['a']) {
+            $index = $i;
+        }
+    }
+    if ($neu || $index === null) {
+        $id = 1 + array_reduce($z['ansichten'], fn($m, $a) => max($m, $a['id']), 0);
+        $z['ansichten'][] = ['id' => $id, 'basis' => $schluessel, 'zonen' => $zonen];
+        zr_lage_setzen($slug, [$schluessel => ['a' => $id, 'm' => [1, 0, 0, 0, 1, 0], 'q' => 'ref']], false);
+    } elseif ($z['ansichten'][$index]['basis'] === null) {
+        // Kameraposition ohne Referenzbild (aus aelterer Version): dieses Bild wird die Referenz
+        $z['ansichten'][$index]['basis'] = $schluessel;
+        $z['ansichten'][$index]['zonen'] = $zonen;
+        zr_lage_setzen($slug, [$schluessel => ['a' => $z['ansichten'][$index]['id'], 'm' => [1, 0, 0, 0, 1, 0], 'q' => 'ref']], false);
+    } else {
+        // in Koordinaten des Referenzbildes zurueckrechnen
+        $inv = zr_affin_invers($lage['m']);
+        $z['ansichten'][$index]['zonen'] = zr_zonen_pruefen(zr_zonen_transformieren($zonen, $inv));
+    }
+    // Kamerapositionen ohne Bereiche wieder entfernen (ausser es ist die einzige)
+    if (count($z['ansichten']) > 1) {
+        $z['ansichten'] = array_values(array_filter($z['ansichten'], fn($a) => $a['zonen']));
+    }
+    return zr_zonen_schreiben($slug, $z);
+}
+
+// --------------------------------------------------------------------------- Lage (Kamera verrutscht)
+
+/**
+ * Lage je Bild in DATEN/<slug>/lage/<tag>.json: {"HHMMSS": {"a": Ansicht-ID, "m": [a,b,c,d,e,f], "q": Guete}}
+ * m bildet Referenzbild-Koordinaten (0..1) auf Bild-Koordinaten ab: x' = a*x + b*y + c, y' = d*x + e*y + f.
+ * Wird vom Abholer per Bildvergleich bestimmt.
+ */
+function zr_lage_tag(string $slug, string $tag): array
+{
+    $datei = zr_kamera_pfad($slug) . "/lage/$tag.json";
+    $k = "$slug/$tag";
+    if (!isset($GLOBALS['ZR_LAGE'][$k])) {
+        $d = is_file($datei) ? json_decode((string) file_get_contents($datei), true) : null;
+        $GLOBALS['ZR_LAGE'][$k] = is_array($d) ? $d : [];
+    }
+    return $GLOBALS['ZR_LAGE'][$k];
+}
+
+function zr_lage_pruefen($e): ?array
+{
+    if (!is_array($e) || !isset($e['a'], $e['m']) || !is_array($e['m']) || count($e['m']) !== 6) {
+        return null;
+    }
+    $m = array_map('floatval', array_values($e['m']));
+    foreach ($m as $v) {
+        if (!is_finite($v) || abs($v) > 10) {
+            return null;
+        }
+    }
+    return ['a' => (int) $e['a'], 'm' => $m, 'q' => substr(preg_replace('/[^a-z]/', '', (string) ($e['q'] ?? '')), 0, 12)];
+}
+
+/**
+ * Lagen schreiben: ["JJJJ-MM-TT/HHMMSS" => {...}]. $alteBilder: betrifft schon gezeigte Bilder (Cache erneuern).
+ * Liefert die Schluessel der geaenderten Bilder.
+ */
+function zr_lage_setzen(string $slug, array $eintraege, bool $alteBilder): array
+{
+    $jeTag = [];
+    foreach ($eintraege as $schluessel => $e) {
+        if (!preg_match('#^(\d{4}-\d{2}-\d{2})/(\d{6})$#', (string) $schluessel, $m)) {
+            continue;
+        }
+        $e = zr_lage_pruefen($e);
+        if ($e !== null) {
+            $jeTag[$m[1]][$m[2]] = $e;
+        }
+    }
+    $geaendert = [];
+    foreach ($jeTag as $tag => $neu) {
+        $datei = zr_kamera_pfad($slug) . "/lage/$tag.json";
+        $alt = is_file($datei) ? (json_decode((string) file_get_contents($datei), true) ?: []) : [];
+        foreach ($neu as $zeit => $e) {
+            if (($alt[$zeit] ?? null) != $e) {
+                $alt[$zeit] = $e;
+                $geaendert[] = "$tag/$zeit";
+            }
+        }
+        ksort($alt);
+        zr_schreiben($datei, json_encode($alt));
+        unset($GLOBALS['ZR_LAGE']["$slug/$tag"]);
+    }
+    if ($geaendert && $alteBilder) {
+        // neue Adressen fuer alle Bilder, damit Browser keine alten Fassungen zeigen
+        zr_schreiben(zr_kamera_pfad($slug) . '/lageversion.txt',
+            (string) max(time(), zr_lageversion($slug) + 1, zr_zonen($slug)['version'] + 1));
+    }
+    return $geaendert;
+}
+
+function zr_lageversion(string $slug): int
+{
+    $d = zr_kamera_pfad($slug) . '/lageversion.txt';
+    return is_file($d) ? (int) file_get_contents($d) : 0;
+}
+
+/**
+ * Lage eines Bildes. Ohne Eintrag: Kameraposition, deren Referenzbild zuletzt vor dem Bild liegt,
+ * ohne Verschiebung. Liefert null, wenn es keine Kameraposition gibt.
+ */
+function zr_lage_fuer_bild(string $slug, string $tag, string $zeit, ?array $z = null): ?array
+{
+    $z = $z ?? zr_zonen($slug);
+    if (!$z['ansichten']) {
+        return null;
+    }
+    $e = zr_lage_pruefen(zr_lage_tag($slug, $tag)[$zeit] ?? null);
+    $ids = array_column($z['ansichten'], 'id');
+    if ($e !== null && in_array($e['a'], $ids, true)) {
+        return $e;
+    }
+    $schluessel = "$tag/$zeit";
+    $wahl = $z['ansichten'][0];
+    foreach ($z['ansichten'] as $a) {
+        if ($a['basis'] === null || strcmp($a['basis'], $schluessel) <= 0) {
+            if ($wahl['basis'] === null || ($a['basis'] !== null && strcmp($a['basis'], (string) $wahl['basis']) >= 0)) {
+                $wahl = $a;
+            }
+        }
+    }
+    return ['a' => $wahl['id'], 'm' => [1, 0, 0, 0, 1, 0], 'q' => 'ohne'];
+}
+
+function zr_affin_invers(array $m): array
+{
+    [$a, $b, $c, $d, $e, $f] = $m;
+    $det = $a * $e - $b * $d;
+    if (abs($det) < 1e-9) {
+        return [1, 0, 0, 0, 1, 0];
+    }
+    return [$e / $det, -$b / $det, ($b * $f - $c * $e) / $det,
+            -$d / $det, $a / $det, ($c * $d - $a * $f) / $det];
+}
+
+function zr_zonen_transformieren(array $zonen, array $m): array
+{
+    [$a, $b, $c, $d, $e, $f] = $m;
+    $aus = [];
+    foreach ($zonen as $z) {
+        $aus[] = ['p' => array_map(fn($q) => [$a * $q[0] + $b * $q[1] + $c, $d * $q[0] + $e * $q[1] + $f], $z['p'])];
+    }
+    return $aus;
+}
+
+/** Bereiche in Koordinaten eines bestimmten Bildes (Kameraposition + Lage beruecksichtigt). */
+function zr_zonen_fuer_bild(string $slug, string $tag, string $zeit, ?array $z = null): array
+{
+    $z = $z ?? zr_zonen($slug);
+    $lage = zr_lage_fuer_bild($slug, $tag, $zeit, $z);
+    if ($lage === null) {
+        return ['ansicht' => null, 'zonen' => [], 'lage' => null];
+    }
+    foreach ($z['ansichten'] as $a) {
+        if ($a['id'] === $lage['a']) {
+            return ['ansicht' => $a['id'], 'zonen' => zr_zonen_transformieren($a['zonen'], $lage['m']), 'lage' => $lage];
+        }
+    }
+    return ['ansicht' => null, 'zonen' => [], 'lage' => $lage];
 }
 
 /** Punkte eines Bereichs in Pixel (flache Liste x1,y1,x2,y2,... relativ zu ($ox,$oy)). */
@@ -341,8 +545,8 @@ function zr_maskieren($bild, array $zonen, string $art): void
         $xs = array_column($z['p'], 0);
         $ys = array_column($z['p'], 1);
         // Raster an den Bloecken ausrichten, damit Pixel in allen Bereichen gleich sitzen
-        $x = (int) (floor(min($xs) * $B / $block) * $block);
-        $y = (int) (floor(min($ys) * $H / $block) * $block);
+        $x = max(0, (int) (floor(min($xs) * $B / $block) * $block));
+        $y = max(0, (int) (floor(min($ys) * $H / $block) * $block));
         $b = min($B, (int) ceil(max($xs) * $B) + 1) - $x;
         $h = min($H, (int) ceil(max($ys) * $H) + 1) - $y;
         if ($b < 2 || $h < 2) {
@@ -411,7 +615,7 @@ function zr_ausnahme_setzen(string $slug, string $tag, string $zeit, bool $an): 
 /**
  * Pfad zur Fassung, die Betrachter sehen duerfen (typ: bild|mittel|klein).
  * Ohne Bereiche ist das das Original. Mit Bereichen wird die verpixelte Fassung
- * bei Bedarf erzeugt bzw. nach einer Aenderung der Bereiche neu erzeugt.
+ * bei Bedarf erzeugt bzw. nach einer Aenderung (Bereiche oder Lage) neu erzeugt.
  * Liefert null, wenn das Bild nicht existiert oder nicht verpixelt werden kann.
  */
 function zr_bild_fuer_ansicht(string $slug, string $typ, string $tag, string $zeit): ?string
@@ -421,32 +625,40 @@ function zr_bild_fuer_ansicht(string $slug, string $typ, string $tag, string $ze
     if (!is_file($original)) {
         return null;
     }
-    $zonen = zr_zonen($slug);
-    if (!$zonen['zonen'] || zr_ist_ausnahme($slug, $tag, $zeit)) {
+    $z = zr_zonen($slug);
+    if (!zr_hat_zonen($z) || zr_ist_ausnahme($slug, $tag, $zeit)) {
         $p = $typ === 'bild' ? $original : "$basis/$typ/$tag/$zeit.jpg";
         return is_file($p) ? $p : $original;
     }
+    $fb = zr_zonen_fuer_bild($slug, $tag, $zeit, $z);
+    $soll = $z['version'] . '-' . md5(json_encode([$z['art'], $fb['zonen']]));
     $ziel = "$basis/zensiert/$typ/$tag/$zeit.jpg";
     $stempel = "$basis/zensiert/$typ/$tag/$zeit.v";
-    if (is_file($ziel) && is_file($stempel) && (int) file_get_contents($stempel) === $zonen['version']) {
+    if (is_file($ziel) && is_file($stempel) && file_get_contents($stempel) === $soll) {
         return $ziel;
     }
-    return zr_verpixeln($slug, $tag, $zeit, $zonen) ? $ziel : null;
+    return zr_verpixeln($slug, $tag, $zeit, $z['art'], $fb['zonen'], $soll) ? $ziel : null;
 }
 
 /** Erzeugt alle drei verpixelten Fassungen eines Bildes. */
-function zr_verpixeln(string $slug, string $tag, string $zeit, ?array $zonen = null): bool
+function zr_verpixeln(string $slug, string $tag, string $zeit, ?string $art = null, ?array $zonen = null, ?string $stempel = null): bool
 {
     if (!function_exists('imagecreatefromjpeg')) {
         return false; // ohne GD lieber nichts zeigen als das Original
     }
-    $zonen = $zonen ?? zr_zonen($slug);
+    if ($zonen === null) {
+        $z = zr_zonen($slug);
+        $fb = zr_zonen_fuer_bild($slug, $tag, $zeit, $z);
+        $art = $z['art'];
+        $zonen = $fb['zonen'];
+        $stempel = $z['version'] . '-' . md5(json_encode([$art, $zonen]));
+    }
     $basis = zr_kamera_pfad($slug);
     $bild = @imagecreatefromjpeg("$basis/bilder/$tag/$zeit.jpg");
     if ($bild === false) {
         return false;
     }
-    zr_maskieren($bild, $zonen['zonen'], $zonen['art']);
+    zr_maskieren($bild, zr_zonen_pruefen_frei($zonen), (string) $art);
     ob_start();
     imagejpeg($bild, null, 88);
     $gross = (string) ob_get_clean();
@@ -454,9 +666,25 @@ function zr_verpixeln(string $slug, string $tag, string $zeit, ?array $zonen = n
     zr_verkleinern($gross, 1280, "$basis/zensiert/mittel/$tag/$zeit.jpg");
     zr_verkleinern($gross, 320, "$basis/zensiert/klein/$tag/$zeit.jpg");
     foreach (['bild', 'mittel', 'klein'] as $t) {
-        zr_schreiben("$basis/zensiert/$t/$tag/$zeit.v", (string) $zonen['version']);
+        zr_schreiben("$basis/zensiert/$t/$tag/$zeit.v", (string) $stempel);
     }
     return true;
+}
+
+/** Wie zr_zonen_pruefen, aber Punkte duerfen ausserhalb liegen (verschobene Bereiche am Bildrand). */
+function zr_zonen_pruefen_frei(array $zonen): array
+{
+    $aus = [];
+    foreach ($zonen as $z) {
+        $p = [];
+        foreach ($z['p'] ?? [] as $q) {
+            $p[] = [max(-0.5, min(1.5, (float) $q[0])), max(-0.5, min(1.5, (float) $q[1]))];
+        }
+        if (count($p) >= 3) {
+            $aus[] = ['p' => $p];
+        }
+    }
+    return $aus;
 }
 
 /** Alle Bilder einer Kamera als Liste [tag, zeit], aelteste zuerst. */

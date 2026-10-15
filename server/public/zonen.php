@@ -1,7 +1,7 @@
 <?php
 // Bereiche zum Verpixeln verwalten. Nur fuer angemeldete Admins, mit CSRF-Schutz.
-//   GET  zonen.php                        aktuelle Bereiche
-//   POST zonen.php?aktion=speichern       Body JSON {"art":"pixel|unscharf","zonen":[{"p":[[x,y],...]},...]}
+//   GET  zonen.php?tag=..&zeit=..         Bereiche in Koordinaten dieses Bildes
+//   POST zonen.php?aktion=speichern       Body JSON {"art","zonen":[{"p":[[x,y],...]}],"tag","zeit","neu":bool}
 //   POST zonen.php?aktion=neu&ab=N        bestehende Bilder neu verpixeln (stapelweise)
 //   POST zonen.php?aktion=ausnahme        Body JSON {"tag","zeit","an":true|false}
 declare(strict_types=1);
@@ -17,7 +17,29 @@ if ($zugang === null || $zugang[2] !== 'admin') {
 [$slug] = $zugang;
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    zr_json(['ok' => true] + zr_zonen($slug));
+    // Bereiche in Koordinaten des angezeigten Bildes (Kameraposition und Verschiebung beruecksichtigt)
+    $tag = (string) ($_GET['tag'] ?? '');
+    $zeit = (string) ($_GET['zeit'] ?? '');
+    if (!zr_ist_tag($tag) || !zr_ist_zeit($zeit)) {
+        zr_fehler(400, 'Bild fehlt');
+    }
+    $z = zr_zonen($slug);
+    $fb = zr_zonen_fuer_bild($slug, $tag, $zeit, $z);
+    $basis = null;
+    foreach ($z['ansichten'] as $a) {
+        if ($a['id'] === $fb['ansicht']) {
+            $basis = $a['basis'];
+        }
+    }
+    zr_json([
+        'ok' => true,
+        'art' => $z['art'],
+        'zonen' => $fb['zonen'],
+        'ansicht' => $fb['ansicht'],
+        'referenz' => $basis,
+        'anzahl_ansichten' => count($z['ansichten']),
+        'lage' => $fb['lage']['q'] ?? null,
+    ]);
 }
 
 zr_session();
@@ -33,8 +55,15 @@ if ($aktion === 'speichern') {
     if (!is_array($d)) {
         zr_fehler(400, 'Ungueltige Daten');
     }
-    $neu = zr_zonen_speichern($slug, (string) ($d['art'] ?? 'pixel'), (array) ($d['zonen'] ?? []));
-    zr_json(['ok' => true, 'anzahl_bilder' => count(zr_alle_bilder($slug))] + $neu);
+    $tag = (string) ($d['tag'] ?? '');
+    $zeit = (string) ($d['zeit'] ?? '');
+    if (!zr_ist_tag($tag) || !zr_ist_zeit($zeit) || !is_file(zr_kamera_pfad($slug) . "/bilder/$tag/$zeit.jpg")) {
+        zr_fehler(400, 'Bild unbekannt');
+    }
+    $neu = zr_zonen_speichern($slug, (string) ($d['art'] ?? 'pixel'), (array) ($d['zonen'] ?? []),
+        $tag, $zeit, !empty($d['neu']));
+    zr_json(['ok' => true, 'anzahl_bilder' => count(zr_alle_bilder($slug)),
+             'version' => max($neu['version'], zr_lageversion($slug))]);
 }
 
 if ($aktion === 'ausnahme') {
@@ -55,7 +84,7 @@ if ($aktion === 'neu') {
     $start = microtime(true);
     $i = $ab;
     @set_time_limit(60);
-    if ($zonen['zonen']) {
+    if (zr_hat_zonen($zonen)) {
         while ($i < count($alle) && microtime(true) - $start < 15) {
             [$tag, $zeit] = $alle[$i];
             zr_bild_fuer_ansicht($slug, 'klein', $tag, $zeit); // erzeugt alle drei Fassungen, falls veraltet

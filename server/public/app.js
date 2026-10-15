@@ -280,8 +280,8 @@
       x.className = 'zone-x';
       x.type = 'button';
       x.textContent = '×';
-      x.style.left = (maxX * 100) + '%';
-      x.style.top = (minY * 100) + '%';
+      x.style.left = (Math.min(0.98, Math.max(0.02, maxX)) * 100) + '%';
+      x.style.top = (Math.min(0.98, Math.max(0.03, minY)) * 100) + '%';
       x.setAttribute('aria-label', 'Bereich entfernen');
       x.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
       x.addEventListener('click', function (ev) {
@@ -298,10 +298,23 @@
 
   function bearbeitenStarten() {
     anhalten();
-    fetch('zonen.php', { cache: 'no-store', credentials: 'same-origin' })
+    var z0 = sichtbar[index];
+    if (!z0) return;
+    fetch('zonen.php?tag=' + encodeURIComponent(tag) + '&zeit=' + encodeURIComponent(z0), { cache: 'no-store', credentials: 'same-origin' })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (d) {
-        bearbeiten = { art: d.art, zonen: d.zonen.map(function (z) { return { p: z.p.slice() }; }) };
+        bearbeiten = { art: d.art, tag: tag, zeit: z0, zonen: d.zonen.map(function (z) { return { p: z.p.slice() }; }) };
+        var info = '';
+        if (d.ansicht && d.referenz) {
+          var r = d.referenz.split('/');
+          info = (d.anzahl_ansichten > 1 ? 'Kameraposition ' + d.ansicht + ', ' : '') +
+            'Referenzbild ' + tagText(r[0]) + ', ' + zeitText(r[1]) + ' Uhr.';
+          if (d.lage === 'ohne') info += ' Für dieses Bild ist die Lage noch nicht bestimmt.';
+          else if (d.lage === 'alt') info += ' Lage unsicher (vom vorherigen Bild übernommen), bitte prüfen.';
+        } else {
+          info = 'Dieses Bild wird beim Speichern zum Referenzbild.';
+        }
+        $('zonen-info').textContent = info;
         $('zonen-art').value = d.art;
         $('admin-leiste').hidden = true;
         $('zonen-leiste').hidden = false;
@@ -337,11 +350,17 @@
     });
   }
 
-  function speichern() {
+  function speichern(neu) {
+    if (neu === true && !confirm('Dieses Bild als neue Kameraposition speichern? ' +
+        'Nur nötig, wenn die Kamera bewusst neu ausgerichtet wurde. Ältere Bilder behalten ihre bisherigen Bereiche.')) return;
     var knopf = $('zonen-speichern');
     knopf.disabled = true;
+    $('zonen-neu').disabled = true;
     $('zonen-status').textContent = 'Speichere …';
-    post('zonen.php?aktion=speichern', { art: $('zonen-art').value, zonen: bearbeiten.zonen })
+    post('zonen.php?aktion=speichern', {
+      art: $('zonen-art').value, zonen: bearbeiten.zonen,
+      tag: bearbeiten.tag, zeit: bearbeiten.zeit, neu: neu === true
+    })
       .then(function (d) {
         daten.zv = d.version;
         var gesamt = d.anzahl_bilder;
@@ -356,6 +375,7 @@
       })
       .then(function () {
         knopf.disabled = false;
+        $('zonen-neu').disabled = false;
         bearbeitenBeenden();
         zeigeOriginal = false;
         $('original-zeigen').checked = false;
@@ -364,6 +384,7 @@
       })
       .catch(function (err) {
         knopf.disabled = false;
+        $('zonen-neu').disabled = false;
         $('zonen-status').textContent = 'Nicht gespeichert: ' + err.message;
       });
   }
@@ -446,7 +467,8 @@
     $('original-zeigen').addEventListener('change', function () { zeigeOriginal = this.checked; neuZeichnen(); });
     $('zonen-bearbeiten').addEventListener('click', bearbeitenStarten);
     $('zonen-abbrechen').addEventListener('click', bearbeitenBeenden);
-    $('zonen-speichern').addEventListener('click', speichern);
+    $('zonen-speichern').addEventListener('click', function () { speichern(false); });
+    $('zonen-neu').addEventListener('click', function () { speichern(true); });
     $('ausnahme').addEventListener('change', function () {
       var k = this, z = sichtbar[index], an = k.checked;
       k.disabled = true;
@@ -485,7 +507,7 @@
   $('tempo').addEventListener('change', function () { if (timer) { anhalten(); abspielen(); } });
   $('nacht').addEventListener('change', function () { anhalten(); tagWaehlen(tag, 'behalten'); });
   document.addEventListener('keydown', function (e) {
-    if ($('bilder').hidden || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== 'range') return;
+    if (bearbeiten || $('bilder').hidden || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== 'range') return;
     if (e.key === 'ArrowLeft') { anhalten(); zeigen(index - 1); e.preventDefault(); }
     else if (e.key === 'ArrowRight') { anhalten(); zeigen(index + 1); e.preventDefault(); }
     else if (e.key === ' ') { abspielen(); e.preventDefault(); }

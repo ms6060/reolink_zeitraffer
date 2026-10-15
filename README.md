@@ -88,7 +88,13 @@ Als Admin angemeldet erscheint unter dem Bild die Leiste **admin**:
 - **Original anzeigen:** zeigt Admins die unveränderten Bilder.
 - **Dieses Bild ohne Verpixelung:** gibt ein einzelnes Bild für alle frei, z. B. wenn ein Bagger den verpixelten Bereich verdeckt. Gilt auch im Video. In der Vorschauleiste mit „frei“ markiert (nur für Admins sichtbar).
 
-Die Bereiche hängen an der Bildposition. Die Kamera daher fest ausrichten (automatische Verfolgung aus, feste Wachposition), sonst passen die Bereiche nach einem Schwenk nicht mehr.
+### Kamera verrutscht: Bereiche wandern mit
+
+Das Bild, auf dem die Bereiche gespeichert werden, ist das **Referenzbild** (am besten eines ohne Bagger davor). Der Abholer vergleicht jedes Bild mit dem Referenzbild (OpenCV, wird vom Einrichtungsskript installiert) und bestimmt, wie weit die Kamera verschoben oder verdreht ist. Die Bereiche werden für jedes Bild und jedes Videobild entsprechend mitbewegt. Gelingt der Vergleich nicht (z. B. nachts), wird das vorherige Bild als Bezug genommen.
+
+- Bereiche dürfen auf jedem Bild bearbeitet werden, auch auf einem verrutschten; sie werden passend ins Referenzbild umgerechnet.
+- **als neue kameraposition:** nur nach bewusstem Neuausrichten der Kamera (z. B. wenn das Haus wächst). Dann alle Bereiche für die neue Ansicht einzeichnen. Ältere Bilder behalten ihre bisherigen Bereiche; jedes Bild wird automatisch der passenden Kameraposition zugeordnet.
+- Trotzdem empfohlen: automatische Verfolgung der Kamera aus und eine feste Wachposition.
 
 Die Originale bleiben in `_privat` erhalten. Alle anderen (Ansicht-Zugänge und Homepage-Link) sehen ausschließlich die verpixelte Fassung. Videos werden vom Abholer ebenfalls verpixelt erstellt; nach einer Änderung der Bereiche sind sie für einige Minuten ausgeblendet, bis die neue Fassung hochgeladen ist.
 

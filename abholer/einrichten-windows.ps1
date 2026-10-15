@@ -92,6 +92,13 @@ if (-not (Test-Path $ffmpeg)) {
 }
 Ok "ffmpeg: $ffmpeg"
 
+Step "4b. OpenCV (Kamera verrutscht: Bereiche wandern mit)"
+& $python -m pip install --quiet --disable-pip-version-check --upgrade opencv-python-headless numpy
+if ($LASTEXITCODE -eq 0) { Ok "OpenCV installiert" } else {
+    Fail "OpenCV konnte nicht installiert werden. Bilder und Videos funktionieren trotzdem,"
+    Info "die Bereiche wandern dann aber nicht mit, wenn die Kamera verrutscht."
+}
+
 Step "5. Konfiguration"
 $ini = Join-Path $Ordner "config.ini"
 if (-not (Test-Path $ini)) {

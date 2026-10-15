@@ -52,7 +52,7 @@ if ($typ === 'video') {
         header('Content-Disposition: attachment; filename="' . $slug . '_' . $name . '.mp4"');
     }
     $pfad = "$basis/videos/$name.mp4";
-    if (is_file($pfad) && filemtime($pfad) <= zr_zonen($slug)['version']) {
+    if (is_file($pfad) && filemtime($pfad) <= max(zr_zonen($slug)['version'], zr_lageversion($slug))) {
         http_response_code(404); // noch nicht mit den aktuellen Bereichen verpixelt
         exit;
     }

@@ -30,7 +30,7 @@ foreach (glob("$basis/bilder/*", GLOB_ONLYDIR) ?: [] as $ordner) {
 }
 krsort($tage);
 
-$zv = zr_zonen($slug)['version'];
+$zv = max(zr_zonen($slug)['version'], zr_lageversion($slug));
 $videos = [];
 foreach (glob("$basis/videos/*.mp4") ?: [] as $datei) {
     $name = basename($datei, '.mp4');
