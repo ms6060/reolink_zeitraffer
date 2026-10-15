@@ -455,14 +455,14 @@ class Vergleich:
         if M is None or inl is None:
             return None
         n = int(inl.sum())
-        if n < 25 or n < 0.25 * len(gute):
+        if n < 30 or n < 0.3 * len(gute):
             return None
         a, b, tx = (float(v) for v in M[0])
         c, d, ty = (float(v) for v in M[1])
         w, h = bild["w"], bild["h"]
         skala = math.hypot(a, c)
         winkel = math.degrees(math.atan2(c, a))
-        if not 0.85 < skala < 1.18 or abs(winkel) > 8 or abs(tx) > 0.3 * w or abs(ty) > 0.3 * h:
+        if not 0.8 < skala < 1.25 or abs(winkel) > 12 or abs(tx) > 0.5 * w or abs(ty) > 0.5 * h:
             return None
         return n, [a, b * h / w, tx / w, c * w / h, d, ty / h]
 
