@@ -490,9 +490,10 @@
         x.classList.toggle('aktiv', an);
         x.setAttribute('aria-selected', an ? 'true' : 'false');
       });
-      $('bilder').hidden = ziel !== 'bilder';
-      $('videos').hidden = ziel !== 'videos';
-      if (ziel !== 'bilder') anhalten(); else $('video').pause();
+      ['bilder', 'videos', 'doku'].forEach(function (id) { if ($(id)) $(id).hidden = ziel !== id; });
+      if (ziel !== 'bilder') anhalten();
+      if (ziel !== 'videos') $('video').pause();
+      document.dispatchEvent(new CustomEvent('reiter', { detail: ziel }));
     });
   });
   $('tag').addEventListener('change', function () { anhalten(); tagWaehlen(this.value, 'anfang'); });

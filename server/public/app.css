@@ -231,3 +231,90 @@ body.bearbeiten .tagwahl, body.bearbeiten #regler, body.bearbeiten .leiste { opa
 }
 body.bearbeiten .original, body.bearbeiten .zeitmarke { display: none; }
 body.bearbeiten .steuerung .abspielen { opacity: .35; pointer-events: none; }
+
+/* ------------------------------------------------------------ Doku */
+.doku-kopf { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.doku-plus { font-size: .9rem; padding: 12px 22px; }
+.doku-hinweis { margin: 0; color: var(--leise); font-size: .92rem; flex: 1; min-width: 220px; }
+.doku-uploads { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; }
+.du-zeile {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 8px 12px;
+  background: var(--flaeche); border: 1px solid var(--linie); border-radius: var(--radius); font-size: .9rem;
+}
+.du-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.du-info { color: var(--leise); white-space: nowrap; }
+.du-balken { grid-column: 1 / -1; height: 3px; background: var(--linie); border-radius: 2px; overflow: hidden; }
+.du-balken span { display: block; height: 100%; width: 0; background: var(--akzent); transition: width .2s; }
+.du-zeile.fertig .du-info { color: #9be29b; }
+.du-zeile.fehler { border-color: #ff8a80; }
+.du-zeile.fehler .du-info { color: #ff8a80; white-space: normal; grid-column: 1 / -1; }
+
+.doku-tag {
+  font-family: var(--titel); font-weight: 500; text-transform: lowercase; letter-spacing: .05em;
+  font-size: 1.05rem; margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--linie);
+}
+.doku-tag:first-child { margin-top: 0; }
+.doku-gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.doku-karte {
+  font: inherit; color: inherit; text-align: left; padding: 0; cursor: pointer; overflow: hidden;
+  background: var(--flaeche); border: 1px solid var(--linie); border-radius: var(--radius);
+}
+.doku-karte:hover, .doku-karte:focus-visible { border-color: var(--akzent); }
+.dk-bild { position: relative; aspect-ratio: 4 / 3; background: #000; }
+.dk-bild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ist-video .dk-bild:not(:has(img))::before {
+  content: "▶"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; color: var(--leise);
+}
+.dk-video, .dk-frei {
+  position: absolute; bottom: 6px; padding: 2px 7px; font-size: .75rem; background: rgba(22,21,23,.78); color: #fff;
+}
+.dk-video { left: 6px; }
+.dk-frei { right: 6px; }
+.doku-karte.privat .dk-frei { color: var(--leise); }
+.dk-text { display: grid; gap: 2px; padding: 7px 9px 9px; }
+.dk-zeit { font-size: .85rem; color: var(--leise); }
+.dk-notiz { font-size: .9rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* Grossansicht */
+body.dg-offen { overflow: hidden; }
+.doku-gross {
+  position: fixed; inset: 0; z-index: 50; background: rgba(10,10,11,.96);
+  display: grid; grid-template-rows: 1fr auto; padding: 48px 12px 12px;
+}
+.dg-medium { display: flex; align-items: center; justify-content: center; min-height: 0; }
+.dg-medium img, .dg-medium video { max-width: 100%; max-height: 100%; object-fit: contain; background: #000; }
+.dg-info { max-width: 900px; width: 100%; margin: 10px auto 0; }
+.dg-titel { margin: 0 0 4px; font-family: var(--titel); font-weight: 500; text-transform: lowercase; letter-spacing: .04em; }
+.dg-notiz { margin: 0; color: var(--text); }
+.dg-zu {
+  position: absolute; top: 8px; right: 12px; width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--linie); background: transparent; color: #fff; font-size: 1.5rem; cursor: pointer;
+}
+.dg-pfeil {
+  position: absolute; top: 45%; width: 44px; height: 64px; border: 0; background: rgba(22,21,23,.6);
+  color: #fff; font-size: 2rem; cursor: pointer; z-index: 2;
+}
+.dg-pfeil:disabled { opacity: 0; pointer-events: none; }
+.dg-zurueck { left: 0; border-radius: 0 6px 6px 0; }
+.dg-vor { right: 0; border-radius: 6px 0 0 6px; }
+.dg-admin { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: end; margin-top: 8px; }
+.dg-feld { display: grid; gap: 4px; font-size: .85rem; color: var(--leise); }
+.dg-feld textarea, .dg-feld input {
+  font: inherit; font-size: .95rem; color: var(--text); background: var(--flaeche);
+  border: 1px solid var(--linie); border-radius: var(--radius); padding: 8px 10px;
+}
+.dg-feld textarea { resize: vertical; grid-column: 1 / -1; }
+.dg-admin > .dg-feld:first-child { grid-column: 1 / -1; }
+.dg-knoepfe { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.dg-knoepfe .voll-knopf { margin-left: auto; }
+.dg-loeschen { color: #ff8a80; text-decoration-color: #ff8a80; }
+.dg-admin .zonen-status { grid-column: 1 / -1; }
+
+@media (max-width: 600px) {
+  .doku-gitter { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .doku-plus { width: 100%; }
+  .doku-gross { padding-top: 54px; }
+  .dg-pfeil { top: 35%; }
+  .dg-admin { grid-template-columns: 1fr; }
+}

@@ -98,6 +98,16 @@ Das Bild, auf dem die Bereiche gespeichert werden, ist das **Referenzbild** (am 
 
 Die Originale bleiben in `_privat` erhalten. Alle anderen (Ansicht-Zugänge und Homepage-Link) sehen ausschließlich die verpixelte Fassung. Videos werden vom Abholer ebenfalls verpixelt erstellt; nach einer Änderung der Bereiche sind sie für einige Minuten ausgeblendet, bis die neue Fassung hochgeladen ist.
 
+## Foto- und Videodoku
+
+Reiter **doku** (für Admins immer sichtbar, für andere nur, wenn etwas freigegeben ist).
+
+- **+ hinzufügen:** am Handy erscheint die übliche Auswahl (Foto aufnehmen, Fotomediathek, Datei). Mehrere Dateien auf einmal möglich.
+- Fotos werden im Browser auf max. 2560 px verkleinert und als JPEG hochgeladen (spart mobile Daten, wandelt iPhone-HEIC um, dreht richtig). Aufnahmezeit aus den Fotodaten.
+- Videos werden unverändert in 2-MB-Teilen hochgeladen (bis 1 GB, Upload-Grenzen des Hostings spielen keine Rolle, Funklöcher werden überbrückt). Vorschaubild und Dauer erzeugt der Browser.
+- Zeitleiste nach Tagen, Großansicht mit Blättern (auch Wischen). Admins können Notiz und Aufnahmezeit ändern, herunterladen, löschen und **für Bauherr sichtbar** schalten. Neue Einträge sind zunächst nur für Admins sichtbar (Doku-Fotos sind nicht verpixelt).
+- Ablage: `_privat/daten/<kamera>/doku/`.
+
 ## 4. Freigeben und einbetten
 
 - **Bauherr:** Link `https://DOMAIN/zeitraffer/?k=TOKEN-BAUHERR` schicken.

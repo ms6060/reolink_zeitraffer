@@ -139,6 +139,7 @@ $v = ZR_VERSION;
     <nav class="reiter" role="tablist">
       <button role="tab" class="aktiv" data-reiter="bilder" aria-selected="true">Bilder</button>
       <button role="tab" data-reiter="videos" aria-selected="false">Videos</button>
+      <button role="tab" data-reiter="doku" aria-selected="false" id="reiter-doku" hidden>Doku</button>
     </nav>
   </header>
 
@@ -197,6 +198,38 @@ $v = ZR_VERSION;
     <div class="leiste" id="leiste"></div>
   </section>
 
+  <section id="doku" class="bereich" hidden>
+    <div class="doku-kopf" id="doku-kopf" hidden>
+      <button class="voll-knopf doku-plus" id="doku-hinzufuegen" type="button">+ hinzufügen</button>
+      <input type="file" id="doku-datei" accept="image/*,video/*" multiple hidden>
+      <p class="doku-hinweis">Foto aufnehmen, aus der Mediathek wählen oder eine Datei hochladen. Neue Einträge sehen zunächst nur Admins.</p>
+    </div>
+    <ul class="doku-uploads" id="doku-uploads"></ul>
+    <div id="doku-liste"><p class="hinweis">Lade …</p></div>
+  </section>
+
+  <div class="doku-gross" id="doku-gross" hidden role="dialog" aria-modal="true" aria-label="Doku-Eintrag">
+    <button class="dg-zu" id="dg-zu" type="button" aria-label="Schließen">×</button>
+    <button class="dg-pfeil dg-zurueck" id="dg-zurueck" type="button" aria-label="Vorheriger Eintrag">‹</button>
+    <button class="dg-pfeil dg-vor" id="dg-vor" type="button" aria-label="Nächster Eintrag">›</button>
+    <div class="dg-medium" id="dg-medium"></div>
+    <div class="dg-info">
+      <p class="dg-titel" id="dg-titel"></p>
+      <p class="dg-notiz" id="dg-notiz"></p>
+      <div class="dg-admin" id="dg-admin" hidden>
+        <label class="dg-feld">Notiz<textarea id="dg-notiz-feld" rows="2" maxlength="2000" placeholder="z. B. Fundament betoniert"></textarea></label>
+        <label class="dg-feld dg-zeit">Aufnahmezeit<input type="datetime-local" id="dg-zeit" step="60"></label>
+        <label class="schalter"><input type="checkbox" id="dg-frei"> für Bauherr sichtbar</label>
+        <div class="dg-knoepfe">
+          <a class="text-knopf" id="dg-download">herunterladen</a>
+          <button class="text-knopf dg-loeschen" id="dg-loeschen" type="button">löschen</button>
+          <button class="voll-knopf" id="dg-speichern" type="button">speichern</button>
+        </div>
+        <p class="zonen-status" id="dg-status" role="status"></p>
+      </div>
+    </div>
+  </div>
+
   <section id="videos" class="bereich" hidden>
     <div class="video-haupt">
       <video id="video" controls playsinline preload="metadata"></video>
@@ -210,5 +243,6 @@ $v = ZR_VERSION;
   <?php endif; ?>
 </div>
 <script src="app.js?v=<?= h($v) ?>"></script>
+<script src="doku.js?v=<?= h($v) ?>"></script>
 </body>
 </html>

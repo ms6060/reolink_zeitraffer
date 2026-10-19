@@ -2,7 +2,7 @@
 // Gemeinsame Funktionen fuer den Zeitraffer-Server.
 declare(strict_types=1);
 
-const ZR_VERSION = '1.5';
+const ZR_VERSION = '1.6';
 
 $zrConfigDatei = dirname(__DIR__) . '/config.php';
 if (!is_file($zrConfigDatei)) {
@@ -711,6 +711,69 @@ function zr_alle_bilder(string $slug): array
     }
     sort($liste);
     return $liste;
+}
+
+// --------------------------------------------------------------------------- Foto- und Videodoku
+
+function zr_doku_pfad(string $slug): string
+{
+    return zr_kamera_pfad($slug) . '/doku';
+}
+
+/** Alle Eintraege, neueste zuerst. */
+function zr_doku_liste(string $slug): array
+{
+    $datei = zr_doku_pfad($slug) . '/index.json';
+    $d = is_file($datei) ? json_decode((string) file_get_contents($datei), true) : null;
+    $liste = is_array($d) ? $d : [];
+    usort($liste, fn($a, $b) => strcmp((string) $b['zeit'], (string) $a['zeit']) ?: strcmp($b['id'], $a['id']));
+    return $liste;
+}
+
+function zr_doku_eintrag(string $slug, string $id): ?array
+{
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}_\d{6}_[0-9a-f]{6}$/', $id)) {
+        return null;
+    }
+    foreach (zr_doku_liste($slug) as $e) {
+        if ($e['id'] === $id) {
+            return $e;
+        }
+    }
+    return null;
+}
+
+/** Liste unter Dateisperre aendern (mehrere Handys koennen gleichzeitig hochladen). */
+function zr_doku_aendern(string $slug, callable $fn): void
+{
+    $ordner = zr_doku_pfad($slug);
+    zr_ordner($ordner);
+    $sperre = fopen("$ordner/index.lock", 'c');
+    flock($sperre, LOCK_EX);
+    $datei = "$ordner/index.json";
+    $d = is_file($datei) ? json_decode((string) file_get_contents($datei), true) : [];
+    $neu = array_values($fn(is_array($d) ? $d : []));
+    // nie abgeschlossene Uploads nach einem Tag vergessen
+    $grenze = date('c', time() - 86400);
+    $neu = array_values(array_filter($neu, fn($e) => empty($e['offen']) || strcmp($e['hochgeladen'], $grenze) > 0));
+    zr_schreiben($datei, json_encode($neu, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    flock($sperre, LOCK_UN);
+    fclose($sperre);
+}
+
+function zr_doku_entfernen(string $slug, string $id): void
+{
+    zr_doku_aendern($slug, fn(array $liste) => array_filter($liste, fn($e) => $e['id'] !== $id));
+}
+
+/** Aufnahmezeit pruefen ("2026-10-19T14:05:00" o. ae.), sonst jetzt. */
+function zr_doku_zeit(string $s): string
+{
+    $t = strtotime(str_replace('T', ' ', substr($s, 0, 19)));
+    if ($t === false || $t < strtotime('2000-01-01') || $t > time() + 86400) {
+        $t = time();
+    }
+    return date('Y-m-d\TH:i:s', $t);
 }
 
 /** Datei ausliefern, mit Caching und Range-Unterstuetzung (fuer Videos auf iPhone/Safari). */
