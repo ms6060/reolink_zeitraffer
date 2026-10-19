@@ -74,9 +74,17 @@ $v = ZR_VERSION;
 <html lang="de-AT">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title><?= h($titel) ?></title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="<?= h($design['app_name']) ?>">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#232224">
 <?php if ($design['schrift_css'] !== ''): ?>
 <link rel="stylesheet" href="<?= h($design['schrift_css']) ?>">
 <?php endif; ?>
@@ -244,5 +252,6 @@ $v = ZR_VERSION;
 </div>
 <script src="app.js?v=<?= h($v) ?>"></script>
 <script src="doku.js?v=<?= h($v) ?>"></script>
+<script src="pwa.js?v=<?= h($v) ?>"></script>
 </body>
 </html>

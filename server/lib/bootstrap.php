@@ -2,7 +2,7 @@
 // Gemeinsame Funktionen fuer den Zeitraffer-Server.
 declare(strict_types=1);
 
-const ZR_VERSION = '1.6';
+const ZR_VERSION = '1.7';
 
 $zrConfigDatei = dirname(__DIR__) . '/config.php';
 if (!is_file($zrConfigDatei)) {
@@ -120,6 +120,7 @@ function zr_design(array $kamera): array
 {
     $standard = [
         'firma' => 'clever & smart immo gmbh',
+        'app_name' => 'clever & smart',      // Name am Homescreen
         'logo' => 'logo.png',
         'akzent' => '#e9e9ea',
         'akzent_text' => '#141315',

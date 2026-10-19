@@ -318,3 +318,20 @@ body.dg-offen { overflow: hidden; }
   .dg-pfeil { top: 35%; }
   .dg-admin { grid-template-columns: 1fr; }
 }
+
+/* Runterziehen zum Aktualisieren */
+.ptr {
+  position: fixed; top: 6px; left: 50%; transform: translate(-50%, -60px); z-index: 60;
+  width: 40px; height: 40px; border-radius: 50%; background: var(--akzent); color: var(--akzent-text);
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  opacity: 0; transition: opacity .15s; pointer-events: none;
+}
+.ptr.sichtbar { opacity: 1; }
+.ptr-kreis { font-size: 1.2rem; transition: transform .2s; }
+.ptr.bereit .ptr-kreis { transform: rotate(180deg); }
+.ptr.laedt .ptr-kreis { animation: ptr-dreh .8s linear infinite; }
+.ptr.laedt .ptr-kreis::before { content: ""; }
+@keyframes ptr-dreh { to { transform: rotate(360deg); } }
+@media (display-mode: standalone) {
+  .leiste-oben { padding-top: env(safe-area-inset-top); }
+}

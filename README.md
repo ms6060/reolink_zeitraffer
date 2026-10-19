@@ -108,6 +108,10 @@ Reiter **doku** (für Admins immer sichtbar, für andere nur, wenn etwas freigeg
 - Zeitleiste nach Tagen, Großansicht mit Blättern (auch Wischen). Admins können Notiz und Aufnahmezeit ändern, herunterladen, löschen und **für Bauherr sichtbar** schalten. Neue Einträge sind zunächst nur für Admins sichtbar (Doku-Fotos sind nicht verpixelt).
 - Ablage: `_privat/daten/<kamera>/doku/`.
 
+## Als App am Handy
+
+In Safari „Teilen“ → „Zum Home-Bildschirm“. Die App heißt „clever & smart“ (in `config.php` unter `design` → `app_name` änderbar) und zeigt das CSI-Logo. Runterziehen am oberen Rand lädt neu; nach mehr als 2 Minuten im Hintergrund wird beim Zurückkehren automatisch aktualisiert.
+
 ## 4. Freigeben und einbetten
 
 - **Bauherr:** Link `https://DOMAIN/zeitraffer/?k=TOKEN-BAUHERR` schicken.

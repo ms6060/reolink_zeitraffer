@@ -40,7 +40,7 @@ cp -f "$QUELLE/config.example.php" "$QUELLE/zugang.sh" "$APP/"
 ok "Programmteile kopiert"
 
 # 2. Galerie in den Web-Ordner
-cp -f "$QUELLE"/public/*.php "$QUELLE"/public/*.js "$QUELLE"/public/*.css "$QUELLE"/public/*.png "$WEB/"
+cp -f "$QUELLE"/public/*.php "$QUELLE"/public/*.js "$QUELLE"/public/*.css "$QUELLE"/public/*.png "$QUELLE"/public/*.json "$WEB/"
 cp -rf "$QUELLE/public/schrift" "$WEB/"
 echo "<?php require __DIR__ . '/_privat/lib/bootstrap.php';" > "$WEB/_init.php"
 ok "Galerie im Web-Ordner"
